@@ -200,6 +200,15 @@ public final class DXJob extends DXExecution {
         }
 
         /**
+         * Returns the effective system requirements.
+         *
+         * @return system requirements
+         */
+        public SystemRequirements getSystemRequirements() {
+            return describeOutput.systemRequirements;
+        }
+
+        /**
          * Returns whether the job will be charged to the billed entity (billTo).
          *
          * <p>
@@ -259,6 +268,8 @@ public final class DXJob extends DXExecution {
         private String resources;
         @JsonProperty
         private String projectCache;
+        @JsonProperty
+        private SystemRequirements systemRequirements;
     }
 
     /**

@@ -93,8 +93,10 @@ public abstract class ExecutableRunner<T extends DXExecution> {
         @SuppressWarnings("unused")
         @JsonProperty
         private Map<String, String> properties;
+        @SuppressWarnings("unused")
+        @JsonProperty
+        private final SystemRequirements systemRequirements;
 
-        // TODO: systemRequirements
         // TODO: executionPolicy
 
         public ExecutableRunRequest(ExecutableRunner<?> runner) {
@@ -105,6 +107,7 @@ public abstract class ExecutableRunner<T extends DXExecution> {
             this.folder = runner.folder;
             this.delayWorkspaceDestruction = runner.delayWorkspaceDestruction;
             this.details = runner.details;
+            this.systemRequirements = runner.systemRequirements;
             this.tags = runner.tags;
             if (runner.properties != null) {
                 this.properties = runner.properties.build();
@@ -181,6 +184,7 @@ public abstract class ExecutableRunner<T extends DXExecution> {
     private JsonNode details;
     private List<String> tags;
     private ImmutableMap.Builder<String, String> properties;
+    private SystemRequirements systemRequirements;
 
     private List<DXExecution> executionDependencies = Lists.newArrayList();
 
@@ -483,5 +487,22 @@ public abstract class ExecutableRunner<T extends DXExecution> {
     @Deprecated
     public ExecutableRunner<T> withRawInput(JsonNode inputHash) {
         return setRawInput(inputHash);
+    }
+
+    /**
+     * Sets system requirements for the run that will override any defaults specified in the
+     * executable.
+     *
+     * @param systemRequirements system requirements
+     *
+     * @return the same runner object
+     */
+    public ExecutableRunner<T> withSystemRequirements(SystemRequirements systemRequirements) {
+        Preconditions.checkState(this.systemRequirements == null,
+                "withSystemRequirements cannot be called more than once");
+        this.systemRequirements =
+                Preconditions
+                        .checkNotNull(systemRequirements, "systemRequirements may not be null");
+        return this;
     }
 }

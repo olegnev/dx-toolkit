@@ -35,6 +35,7 @@ public class RunSpecification {
 
         private String interpreter;
         private String code;
+        private SystemRequirements systemRequirements;
 
         private Builder(String interpreter, String code) {
             this.interpreter = interpreter;
@@ -50,7 +51,12 @@ public class RunSpecification {
             return new RunSpecification(this);
         }
 
-        // TODO: systemRequirements, executionPolicy, bundledDepends, execDepends
+        public Builder withSystemRequirements(SystemRequirements systemRequirements) {
+            this.systemRequirements = systemRequirements;
+            return this;
+        }
+
+        // TODO: executionPolicy, bundledDepends, execDepends
     }
 
     /**
@@ -68,9 +74,10 @@ public class RunSpecification {
 
     @JsonProperty
     private String code;
-
     @JsonProperty
     private String interpreter;
+    @JsonProperty
+    private SystemRequirements systemRequirements;
 
     private RunSpecification() {
         // No-arg constructor for Jackson deserialization
@@ -79,6 +86,7 @@ public class RunSpecification {
     private RunSpecification(Builder builder) {
         this.code = builder.code;
         this.interpreter = builder.interpreter;
+        this.systemRequirements = builder.systemRequirements;
     }
 
     /**
@@ -97,6 +105,15 @@ public class RunSpecification {
      */
     public String getInterpreter() {
         return interpreter;
+    }
+
+    /**
+     * Returns the default system requirements for the applet.
+     *
+     * @return system requirements
+     */
+    public SystemRequirements getSystemRequirements() {
+        return systemRequirements;
     }
 
 }

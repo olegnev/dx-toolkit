@@ -375,4 +375,6 @@ public class DXAppletTest {
                         .buildRequestHash());
     }
 
+    // TODO: test systemRequirements when creating and when running an applet
+
 }
