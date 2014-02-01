@@ -132,7 +132,6 @@ def create_app_dir_with_dxapp_json(dxapp_json, language):
     finally:
         os.chdir(old_cwd)
 
-@unittest.skip('')
 class TestDXAppWizardAndRunAppLocally(DXTestCase):
     def test_dx_app_wizard(self):
         appdir = run_dx_app_wizard()
