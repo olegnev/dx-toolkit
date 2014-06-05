@@ -125,7 +125,6 @@ public class DXFile extends DXDataObject {
 
     @JsonInclude(Include.NON_NULL)
     private static class FileNewRequest extends DataObjectNewRequest {
-        @SuppressWarnings("unused")
         @JsonProperty
         private final String media;
 
@@ -142,7 +141,6 @@ public class DXFile extends DXDataObject {
      *
      * @return data object
      */
-    @SuppressWarnings("unused")
     @JsonCreator
     private static DXFile create(Map<String, Object> value) {
         checkDXLinkFormat(value);

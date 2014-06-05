@@ -47,7 +47,6 @@ public class DXSearchTest {
 
     @JsonInclude(Include.NON_NULL)
     private static class SampleAppInput {
-        @SuppressWarnings("unused")
         @JsonProperty("input_string")
         public final String inputString;
 

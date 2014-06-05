@@ -50,7 +50,7 @@ public class DXAppletTest {
      * This class doesn't serialize to an object or array!
      */
     private static class InvalidAppDetails {
-        @SuppressWarnings({"unused", "static-method"})
+        @SuppressWarnings("static-method")
         @JsonValue
         public Object getValue() {
             return 3;
@@ -73,10 +73,8 @@ public class DXAppletTest {
 
     @JsonInclude(Include.NON_NULL)
     private static class SampleAppInput {
-        @SuppressWarnings("unused")
         @JsonProperty("input_string")
         public final String inputString;
-        @SuppressWarnings("unused")
         @JsonProperty("input_record")
         public final DXRecord inputRecord;
 

@@ -146,7 +146,6 @@ public class DXGTable extends DXDataObject {
 
     @JsonInclude(Include.NON_NULL)
     private static class GTableNewRequest extends DataObjectNewRequest {
-        @SuppressWarnings("unused")
         @JsonProperty
         private final List<ColumnSpecification> columns;
 
@@ -164,7 +163,6 @@ public class DXGTable extends DXDataObject {
      *
      * @return data object
      */
-    @SuppressWarnings("unused")
     @JsonCreator
     private static DXGTable create(Map<String, Object> value) {
         checkDXLinkFormat(value);

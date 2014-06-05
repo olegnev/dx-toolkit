@@ -48,7 +48,6 @@ public enum DataObjectState {
         createMap = ImmutableMap.copyOf(result);
     }
 
-    @SuppressWarnings("unused")
     @JsonCreator
     private static DataObjectState create(String value) {
         return createMap.get(value);
