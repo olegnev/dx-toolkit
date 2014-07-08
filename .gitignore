@@ -1,4 +1,4 @@
-/build/wheels/
+TEST_RUN_JOBS/build/wheels/
 /build/coverage/
 /build/info/version
 /build/wrapper_table.json
@@ -93,4 +93,3 @@ dxR.Rcheck
 /src/ua/dnanexus-upload-agent-*-linux
 /src/ua/ua
 test-job-workspaces
-
