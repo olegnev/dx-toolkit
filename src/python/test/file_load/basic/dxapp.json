@@ -1,6 +1,6 @@
-{ "name": "app2",
-  "title": "app2",
-  "summary" : "file upload/download test 2",
+{ "name": "basic",
+  "title": "basic",
+  "summary" : "basic file upload/download",
   "runSpec": {
     "file": "src/run.sh",
     "interpreter": "bash"

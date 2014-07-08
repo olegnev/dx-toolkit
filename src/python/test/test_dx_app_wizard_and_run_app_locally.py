@@ -27,6 +27,7 @@ import dxpy_testutil as testutil
 
 import dxpy
 from dxpy.scripts import dx_build_app
+from dxpy.exceptions import DXCLIError
 
 supported_languages = ['Python', 'C++', 'bash']
 
@@ -353,38 +354,47 @@ class TestDXAppWizardAndRunAppLocally(DXTestCase):
 test the upload/download helpers by running them locally
 '''
 class TestDXBashHelpers(DXTestCase):
-    def run_test_app_locally(self, arg_list):
+    def run_test_app_locally(self, app_name, arg_list):
         '''
+        :param app_name: name of app to run
         :param arg_list: list of command line arguments given to an app
 
         Runs an app locally, with a given set of command line arguments
         '''
         path = os.path.join(os.path.dirname(__file__), "file_load")
-        args = ['dx-run-app-locally',
-                os.path.join(path, 'app1')]
+        args = ['dx-run-app-locally', os.path.join(path, app_name)]
         args.extend(arg_list)
         check_output(args)
 
-    def test_app1(self):
+    def test_basic(self):
         # Make a couple files for testing
         print("testing upload/download helpers")
         dxpy.upload_string("1234", name="A.txt")
 
-        # this invocation should fail
-        if False:
-            try:
-                self.run_test_app_locally(['-iseq1=A.txt', '-iseq2=B.txt'])
-                raise Exception("Error: this should have failed")
-            except:
-                pass
+        # this invocation should fail with a CLI exception
+        try:
+            self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt'])
+        except testutil.DXCalledProcessError:
+            pass
+        except Exception as e:
+            print("Wrong kind of exception")
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(exc_type, exc_tb)
+            ##print(e)
+        finally:
+            dxpy.upload_string("ABCD", name="B.txt")
 
+            # these should succeed
+            self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt', '-iref=A.txt', '-iref=B.txt', "-ivalue=5"])
+            self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt', '-iref=A.txt', '-iref=B.txt',
+                                       "-ivalue=5"])
+            print("Done")
+
+    def test_sub_jobs(self):
+        '''  Tests a bash script that generates sub-jobs '''
+        dxpy.upload_string("1234", name="A.txt")
         dxpy.upload_string("ABCD", name="B.txt")
-
-        # these should succeed
-        self.run_test_app_locally(['-iseq1=A.txt', '-iseq2=B.txt', '-iref=A.txt', '-iref=B.txt', "-ivalue=5"])
-        self.run_test_app_locally(['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt', '-iref=A.txt', '-iref=B.txt',
-                                   "-ivalue=5"])
-        print("Done")
+        self.run_test_app_locally('with-subjobs', ["-ifiles=A.txt", "-ifiles=B.txt"])
 
 
 if __name__ == '__main__':

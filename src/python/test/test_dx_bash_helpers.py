@@ -59,7 +59,6 @@ def build_app_with_bash_helpers(app_dir, project_id):
         if not os.path.exists(resources_bindir):
             os.makedirs(resources_bindir)
         shutil.copy(os.path.join(LOCAL_SCRIPTS, 'dx-download-all-inputs'), resources_bindir)
-        shutil.copy(os.path.join(LOCAL_SCRIPTS, 'dx-download-input'), resources_bindir)
         shutil.copy(os.path.join(LOCAL_SCRIPTS, 'dx-upload-all-outputs'), resources_bindir)
 
         # Now copy any libraries we depend on. This is tricky to get
@@ -110,19 +109,18 @@ for each kwarg)
     return output
 
 class TestDXBashHelpers(DXTestCase):
-#    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
-    def test_app1(self):
+    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    def test_basic(self):
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
             env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
 
             # Upload some files for use by the applet
-            dxpy.upload_string("foo\n", project=p.get_id(), name="f1")
             dxpy.upload_string("1234\n", project=p.get_id(), name="A.txt")
             dxpy.upload_string("ABCD\n", project=p.get_id(), name="B.txt")
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
-            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'app1'), p.get_id())
+            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'basic'), p.get_id())
 
             # Run the applet
             applet_args = ['-iseq1=A.txt', '-iseq2=B.txt', '-iref=A.txt', '-iref=B.txt', "-ivalue=5"]
@@ -130,6 +128,38 @@ class TestDXBashHelpers(DXTestCase):
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
 
+    def test_sub_jobs(self):
+        '''  Tests a bash script that generates sub-jobs '''
+        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
+            env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
+
+             # Upload some files for use by the applet
+            dxpy.upload_string("1234\n", project=p.get_id(), name="A.txt")
+            dxpy.upload_string("ABCD\n", project=p.get_id(), name="B.txt")
+
+            # Build the applet, patching in the bash helpers from the
+            # local checkout
+            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'with-subjobs'), p.get_id())
+             # Run the applet.
+            # Since the job creates two sub-jobs, we need to be a bit more sophisticated
+            # in order to wait for completion.
+            applet_args = ["-ifiles=A.txt", "-ifiles=B.txt"]
+            cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
+            cmd_args.extend(applet_args)
+            job_id = run(cmd_args, env=env).strip()
+
+            # figure out the job-id, so we can wait for the parent job to complete.
+            run(['dx', 'wait', job_id], env=env)
+
+            # Assertions -- making sure the script worked
+            # Assertions to make about the job's output after it is done running:
+            # - *first_file* is a file named first_file.txt containing the string:
+            #     "contents of first_file"
+            # - *final_file* is a file named final_file.txt containing the
+            #   *concatenation of the two input files in *files*
+            job_handler = dxpy.get_handler(job_id)
+            job_output = job_handler.output
+            job_output['first_file']
 
 if __name__ == '__main__':
     unittest.main()

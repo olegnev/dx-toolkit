@@ -14,10 +14,10 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-import json, pprint, os
-import dxpy
-
-'''This module provides support for file download and upload. It calculates the location of the input and output directories. It also has a utility for parsing the job input file ('job_input.json'). 
+'''
+This module provides support for file download and upload. It calculates the
+   location of the input and output directories. It also has a utility for parsing
+   the job input file ('job_input.json').
 
 We use the following shorthands
    <idir> == input directory     $HOME/in
@@ -28,52 +28,58 @@ A simple example of the job input, when run locally, is:
 {
     "seq2": {
         "$dnanexus_link": {
-            "project": "project-BKJfY1j0b06Z4y8PX8bQ094f", 
-            "id": "file-BKQGkjj0b06xG5560GGQ001K"
+            "project": "project-1111",
+            "id": "file-1111"
         }
     }, 
     "seq1": {
         "$dnanexus_link": {
-            "project": "project-BKJfY1j0b06Z4y8PX8bQ094f", 
-            "id": "file-BKQGkgQ0b06xG5560GGQ001B"
+            "project": "project-2222",
+            "id": "file-2222"
         }
     }
     "blast_args": "", 
     "evalue": 0.01
 }
 
-The first two elements are files {seq1, seq2}, the other elements
+The first two elements are files {seq1, seq2}, the other elements are
 {blast_args, evalue}.  The file for seq2 should be saved into:
 <idir>/seq2/filename
 
-source command line
-  -iseq1=NC_000868.fasta -iseq2=NC_001422.fasta 
-
-file seq1 is supposed to appear in the execution environment at path:
-<idir>/seq1/NC_000868.fasta
+An example for a shell command that would create these arguments is:
+    $ dx run coolapp -iseq1=NC_000868.fasta -iseq2=NC_001422.fasta
+It would run an app named "coolapp", with file arguments for seq1 and seq2. Both NC_*
+files should have been uploaded to the cloud. File seq1 is supposed to appear in
+the execution environment at path:  <idir>/seq1/NC_000868.fasta
 
 File Arrays
 
 {
     "reads": [{
         "$dnanexus_link": {
-            "project": "project-BKJfY1j0b06Z4y8PX8bQ094f", 
-            "id": "file-BKQGkjj0b06xG5560GGQ001K"
+            "project": "project-3333",
+            "id": "file-3333"
         }
     }, 
     {
         "$dnanexus_link": {
-            "project": "project-BKJfY1j0b06Z4y8PX8bQ094f", 
-            "id": "file-BKQGkgQ0b06xG5560GGQ001B"
+            "project": "project-4444",
+            "id": "file-4444"
         }
     }]
 }
 
-This file array with two files, will appear in the virtual machine as:
-<idir>/reads/A.txt
-             B.txt
+This is a file array with two files. Running a command like this:
+    $ dx run coolapp -ireads=A.fastq -ireads=B.fasta
+will download into the execution environment:
+<idir>/reads/A.fastq
+             B.fastq
 
 '''
+
+
+import json, pprint, os
+import dxpy
 
     
 def get_input_dir():
@@ -116,12 +122,12 @@ def ensure_dir(path):
 def parse_job_input(idir):
     '''
     :param idir: input directory
-    :param job_input_file: a json file that provides the input format
+    :param job_input_file: a json file that provides the job input hash
 
      Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations.
     '''
-    job_input_file = get_input_json_file();
+    job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
         job_input = json.load(fh)
         files = []
@@ -152,6 +158,42 @@ def parse_job_input(idir):
             elif isinstance(value, list):
                 # This is a file array, we use the field name as the directory
                 for link in value:
-                    add_file(input_name, link)
-
+                    handler = dxpy.get_handler(link)
+                    if isinstance(handler, dxpy.DXFile):
+                        add_file(input_name, link)
+                    else:
+                        # we need to make sure this is a file. Is it possible that it won't be?
+                        print("Warning: link={} is not a file link".format(link))
         return dirs, files
+
+def get_input_spec():
+    ''' Extract the inputSpec, if it exists
+    '''
+    input_spec = None
+    if 'DX_JOB_ID' in os.environ:
+        # works in the cloud, not locally
+        # print("found the job id");
+        job_desc = dxpy.describe(dxpy.JOB_ID)
+        desc = dxpy.describe(job_desc.get("app", job_desc.get("applet")))
+        if "inputSpec" in desc:
+            input_spec = desc["inputSpec"]
+    elif 'DX_TEST_DXAPP_JSON' in os.environ:
+        # works only locally
+        path_to_dxapp_json = os.environ['DX_TEST_DXAPP_JSON']
+        with open(path_to_dxapp_json, 'r') as fd:
+            dxapp_json = json.load(fd)
+            input_spec = dxapp_json.get('inputSpec')
+
+    # convert to a dictionary. Each record in the output spec
+    # has {name, class, optional} attributes.
+    if input_spec is None:
+        return {}
+
+    # for each field name, we want to know its class, and if it
+    # is optional
+    recs = {}
+    for spec in input_spec:
+        name = spec['name']
+        recs[name] = {'class': spec['class']}
+        recs[name]['optional'] = spec.get('optional', False)
+    return recs

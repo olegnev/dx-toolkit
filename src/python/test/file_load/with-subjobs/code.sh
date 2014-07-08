@@ -19,7 +19,7 @@ main() {
         process_jobs[$i]=$(dx-jobutil-new-job process -iprocess_input:file="${files[$i]}")
     done
 
-    postprocess=$(dx-jobutil-new-job postprocess -ipp_input0:file=process_jobs[0]:p_output -ipp_input1:file=process_jobs[1]:p_output)
+    postprocess=$(dx-jobutil-new-job postprocess -ipp_input0:file="${process_jobs[0]}":p_output -ipp_input1:file="${process_jobs[1]}":p_output)
 
     # make some file here to upload as an output
     mkdir -p out/first_file
