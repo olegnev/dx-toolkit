@@ -16,39 +16,28 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
+''' This helper script uploads all output files from the virtual machine
+running in the cloud to the cloud filesystem (S3).
+
+Overview
+   Upload everything that is in the output directory, and generate a
+   $HOME/job_output.json file that describes it.
+
+   (a) Figure out what exists in the output directory, and is relevant.
+      The relevant formats are:
+      <odir>/xxx/yyy
+          xxx == key
+          yyy == file name
+   (b) If there is an output spec, compare against it.
+   (c) Upload everything that is in the output directory
+   (d) Generate a $HOME/job_output.json file that describes it.
+'''
+
 import os, sys, json, argparse
-import pprint
 import dxpy
 
 ## contains specific helper functions
 from dxpy.utils import file_load_utils
-
-
-''' This helper script uploads all output files from the virtual machine
-running in the cloud to the cloud filesystem (S3).
-
-Specification
-
-Part 1: 
-   Upload everything that is in the output directory, and generate a
-   $HOME/job_output.json file that describes it. 
-   (a)
-      Figure out what exists in the output directory, and is relevant. 
-      The relevant formats are: 
-      <odir>/xxx/yyy
-          xxx == key
-          yyy == file name
-
-   (b) Upload everything that is in the output directory
-         fasta_gz = dxpy.upload_local_file("%s.fa.gz" % name);
-
-   (c) Generate a $HOME/job_output.json file that describes it. 
-
-Part 2:
-   If there is an output spec, compare against it. 
-'''
-pp = pprint.PrettyPrinter(indent=4)
-
 
 def report_error_and_exit(message):
     ''' Report an error, since this is called from a bash script, we
@@ -96,15 +85,15 @@ def get_output_spec():
 
     # for each field name, we want to know its class, and if it
     # is optional
-    recs = {}
+    subdir_recs = {}
     for spec in output_spec:
         name = spec['name']
-        recs[name] = {'class': spec['class']}
+        subdir_recs[name] = {'class': spec['class']}
         if 'optional' in spec:
-            recs[name]['optional'] = spec['optional']
+            subdir_recs[name]['optional'] = spec['optional']
         else:
-            recs[name]['optional'] = False
-    return recs
+            subdir_recs[name]['optional'] = False
+    return subdir_recs
 
 
 def traverse_output_subdir(odir, subdir):
@@ -142,8 +131,8 @@ def analyze_output_dir():
        <odir>/xxx/vvv
        <odir>/xxx/zzz
 
-    return dictionary that maps subdir name (key) to a record. A
-    record includes the subdir path, and a list of all the files.
+    return dictionary that maps subdir name (key) to a tuple. Each
+    tuple includes the subdir path, and a list of all the files.
     '''
     odir = file_load_utils.get_output_dir()
     if not os.path.isdir(odir):
@@ -156,26 +145,27 @@ def analyze_output_dir():
             continue
         if path.startswith('.'):
             continue
-        rec = {'path': path,
-               'files': traverse_output_subdir(odir, path),
-               'dx_links': []}
-        subdir_recs[subdir] = rec
+        s_rec = {'path': path,
+                   'files': traverse_output_subdir(odir, path),
+                   'dx_links': []}
+        subdir_recs[subdir] = s_rec
     return subdir_recs
 
 
-def compare_to_output_spec(recs, output_spec):
+def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
     '''
-    Compare the records found in the output directory to the
-    output specification
+    Compare the subdirectries found in the output directory to the
+    output specification, and add annotations to the directory
+    descriptions.
 
     An output spec is a list of records with {class, name} attributes.
     '''
-    # Annotate with a class, and sanity check
     def sanity_check_field(key):
+        '''Annotate with a class, and sanity check'''
         class_ = output_spec[key]['class']
-        rec = recs[key]
-        rec['class'] = class_
-        num_files = len(rec['files'])
+        s_rec = subdir_recs[key]
+        s_rec['class'] = class_
+        num_files = len(s_rec['files'])
         if class_ == 'file':
             if not num_files == 1:
                 report_error_and_exit("key {} is of class {} but there are {} files".format(key, class_, num_files))
@@ -183,23 +173,24 @@ def compare_to_output_spec(recs, output_spec):
             # array of files, there could be any number of files in the subdirectory (including zero)
             pass
 
-    # Check that all the relevant output fields have been generated
+
     for key in output_spec:
+        '''Check that all the relevant output fields have been generated'''
         class_ = output_spec[key]['class']
         if (class_ == 'file' or
-                    class_ == 'array:file'):
+            class_ == 'array:file'):
             # file field, with a directory
-            if key not in recs:
-                pp.pprint("Warning: output key {} not generated".format(key))
+            if key not in subdir_recs:
+                sys.stderr.write("Warning: output key {} not generated\n".format(key))
             else:
                 sanity_check_field(key)
         elif output_spec[key]['optional']:
             # optional output field
-            if key in recs:
+            if key in subdir_recs:
                 sanity_check_field(key)
         else:
             # detects when a subdirectory appears for an output that is not "file" nor "array:file".
-            if key in recs:
+            if key in subdir_recs:
                 report_error_and_exit(
                     "key {} is of class {} but it appears in the output directory".format(key, class_))
 
@@ -214,17 +205,15 @@ def upload_all(subdirs):
     parallel. This could be improved in the future.
     '''
     for key in subdirs:
-        rec = subdirs[key]
-        for fname in rec['files']:
+        s_rec = subdirs[key]
+        for fname in s_rec['files']:
             ## Upload the file
-            path = os.path.join(rec['path'], fname)
+            path = os.path.join(s_rec['path'], fname)
             f_obj = dxpy.upload_local_file(path, wait_on_close=True)
-            rec['dx_links'].append(dxpy.dxlink(f_obj))
-    return subdirs
+            s_rec['dx_links'].append(dxpy.dxlink(f_obj))
 
 
-
-def update_output_json(file_recs):
+def update_output_json(subdir_recs):
     ''' update the output json file.'''
 
     # Load existing file, if it exists
@@ -252,14 +241,14 @@ def update_output_json(file_recs):
                 report_error_and_exit("Key {} was found in output but is not an array".format(key))
 
     # Add all the records
-    for key in file_recs:
-        rec = file_recs[key]
-        dxlinks = rec['dx_links']
+    for key in subdir_recs:
+        s_rec = subdir_recs[key]
+        dxlinks = s_rec['dx_links']
         if len(dxlinks) == 0:
             continue
         class_ = None
-        if 'class' in rec:
-            class_ = rec['class']
+        if 'class' in s_rec:
+            class_ = s_rec['class']
         add_rec_to_json(key, class_, dxlinks)
 
     # write it back out
@@ -267,15 +256,15 @@ def update_output_json(file_recs):
     with open(output_file, 'w') as fh:
         json.dump(output_json, fh, indent=4)
 
+
 ## entry point
 output_spec = get_output_spec()
-file_recs = analyze_output_dir()
-#print "found ", len(recs), " records"
+subdir_recs = analyze_output_dir()
 
 # Compare against the output spec
-compare_to_output_spec(file_recs, output_spec)
+compare_to_output_spec_and_annotate(subdir_recs, output_spec)
 
-file_recs = upload_all(file_recs)
-update_output_json(file_recs)
+upload_all(subdir_recs)
+update_output_json(subdir_recs)
 
 

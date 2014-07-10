@@ -2,7 +2,7 @@
   "title": "basic",
   "summary" : "basic file upload/download",
   "runSpec": {
-    "file": "src/run.sh",
+    "file": "run.sh",
     "interpreter": "bash"
   },
   "inputSpec": [

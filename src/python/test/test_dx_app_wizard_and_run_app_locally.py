@@ -396,6 +396,13 @@ class TestDXBashHelpers(DXTestCase):
         dxpy.upload_string("ABCD", name="B.txt")
         self.run_test_app_locally('with-subjobs', ["-ifiles=A.txt", "-ifiles=B.txt"])
 
+    def test_bad_chars(self):
+        '''  Tests filenames with non standard characters'''
+        dxpy.upload_string("1234", name="A-.txt")
+        dxpy.upload_string("ABCD", name="B*.txt")
+        self.run_test_app_locally('basic', ["-ifiles=A-.txt", "-ifiles=B*.txt",
+                                            '-iref=A-.txt', '-iref=B*.txt', "-ivalue=5"])
+
 
 if __name__ == '__main__':
     unittest.main()

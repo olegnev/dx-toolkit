@@ -20,6 +20,7 @@
 from __future__ import print_function, unicode_literals
 
 import os, unittest, json, tempfile, shutil, pipes
+import pprint
 
 import dxpy
 from dxpy_testutil import DXTestCase, check_output, temporary_project
@@ -157,9 +158,21 @@ class TestDXBashHelpers(DXTestCase):
             #     "contents of first_file"
             # - *final_file* is a file named final_file.txt containing the
             #   *concatenation of the two input files in *files*
+            print("Test completed successfully, checking file content\n")
+
             job_handler = dxpy.get_handler(job_id)
             job_output = job_handler.output
-            job_output['first_file']
+            pp = pprint.PrettyPrinter(indent=4)
+            pp.pprint(job_output)
+
+            # download the files from the cloud
+            f1_dxlink = job_output['first_file']
+            dxpy.download_dxfile(f1_dxlink, "f1.txt")
+            f2_dxlink = job_output['final_file']
+            dxpy.download_dxfile(f2_dxlink, "f2.txt")
+
+            # compare the content
+            #dxpy. "contents of first_file"
 
 if __name__ == '__main__':
     unittest.main()

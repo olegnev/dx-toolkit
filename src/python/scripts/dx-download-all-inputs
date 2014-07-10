@@ -43,7 +43,6 @@ def create_dirs(idir, dirs):
 
     TODO: this call could fail, we need to report a reasonable error code
     '''
-    print ("create_dirs " + str(len(dirs)))
     if len(dirs) == 0:
         return
     ## create the <idir> itself
@@ -61,19 +60,17 @@ dirs, inputs = file_load_utils.parse_job_input(idir)
 ## Allows performing the download in parallel.
 create_dirs(idir, dirs)
 
-## Remove from the excluded records
+## Remove excluded records
 to_download = []
-for rec in inputs:
-    iname = rec['iname']
+for file_rec in inputs:
+    iname = file_rec['iname']
     if iname in args.exclude:
         # ignore excluded arguments
         continue
-    to_download.append(rec)
+    to_download.append(file_rec)
 
 # Download the files, currently, this is done sequentially (one file at
 # a time). We are all set up to do this in parallel
-for rec in to_download:
-    print("download file: " + rec['src_file_id'] + "-> " + rec['trg_fname'])
-    dxpy.download_dxfile(rec['src_file_id'], rec['trg_fname'])
-
-
+for file_rec in to_download:
+    print("downloading file: " + file_rec['src_file_id'] + " to filesystem: " + file_rec['trg_fname'])
+    dxpy.download_dxfile(file_rec['src_file_id'], file_rec['trg_fname'])
