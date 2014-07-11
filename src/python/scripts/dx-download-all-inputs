@@ -16,8 +16,7 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-import os, sys, json, argparse, subprocess
-import pprint
+import os, sys, json, argparse
 
 import dxpy
 

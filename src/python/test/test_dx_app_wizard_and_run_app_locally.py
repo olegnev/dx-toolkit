@@ -397,7 +397,12 @@ class TestDXBashHelpers(DXTestCase):
         self.run_test_app_locally('with-subjobs', ["-ifiles=A.txt", "-ifiles=B.txt"])
 
     def test_bad_chars(self):
-        '''  Tests filenames with non standard characters'''
+        '''  Tests filenames with non standard characters
+
+        special characters like ?, /, !, or :?
+        Does downloading the file using the file's name as the local filename still work?
+
+        '''
         dxpy.upload_string("1234", name="A-.txt")
         dxpy.upload_string("ABCD", name="B*.txt")
         self.run_test_app_locally('basic', ["-ifiles=A-.txt", "-ifiles=B*.txt",

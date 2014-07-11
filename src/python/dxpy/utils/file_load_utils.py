@@ -43,8 +43,9 @@ A simple example of the job input, when run locally, is:
 }
 
 The first two elements are files {seq1, seq2}, the other elements are
-{blast_args, evalue}.  The file for seq2 should be saved into:
-<idir>/seq2/filename
+{blast_args, evalue}. The file for seq1,seq2 should be saved into:
+<idir>/seq1/<filename>
+<idir>/seq2/<filename>
 
 An example for a shell command that would create these arguments is:
     $ dx run coolapp -iseq1=NC_000868.fasta -iseq2=NC_001422.fasta
@@ -78,18 +79,26 @@ will download into the execution environment:
 '''
 
 
-import json, pprint, os
+import json, os
 import dxpy
-
+from ..exceptions import DXError
     
 def get_input_dir():
-    ''' Returns the input directory, where all inputs are downloaded '''
+    '''
+    :rtype string
+    :returns path to input directory
+
+    Returns the input directory, where all inputs are downloaded
+    '''
     home_dir = os.environ.get('HOME')
     idir = os.path.join(home_dir, 'in')
     return idir
 
 def get_output_dir():
-    ''' 
+    '''
+    :rtype string
+    :returns path to output directory
+
     Returns the output directory, where all outputs are created, and
     uploaded from
     '''
@@ -98,19 +107,27 @@ def get_output_dir():
     return odir
 
 def get_input_json_file():
-    ''' Input JSON file '''
+    """
+    :rtype : string
+    :returns: path to input JSON file
+    """
     home_dir = os.environ.get('HOME')
-    return os.path.join(home_dir, "job_input.json");
+    return os.path.join(home_dir, "job_input.json")
 
 def get_output_json_file():
-    ''' Output JSON file '''
+    """
+    :rtype : string
+    :returns : Path to output JSON file
+    """
     home_dir = os.environ.get('HOME')
-    return os.path.join(home_dir, "job_output.json");
+    return os.path.join(home_dir, "job_output.json")
 
 def ensure_dir(path):
-    '''
+    """
+    :param path: path to directory to be created
+
     Create a directory if it does not already exist.
-    '''
+    """
     if not os.path.exists(path):
         # path does not exist, create the directory
         os.mkdir(path)
@@ -119,14 +136,51 @@ def ensure_dir(path):
         if os.path.isfile(path):
             raise Exception("Path %s already exists, and it is a file, not a directory" % path)
 
-def parse_job_input(idir):
-    '''
-    :param idir: input directory
-    :param job_input_file: a json file that provides the job input hash
+def make_unix_filename(fname):
+    """
+    :param fname: filename
+    :return: a valid unix filename
+    :rtype: string
 
-     Extract list of files, returns a set of directories to create, and
-    a set of files, with sources and destinations.
-    '''
+    The *fname* is just the file name, not the full path (e.g., xxx in /zzz/yyy/xxx).
+    The problem being solved here is that *fname* is just a python string, it
+    may contain characters that are invalid for a file name. For example, unicode chars, or
+    any of these: ".?|!"
+
+    Currently, all we do is replace the slashes, like in other places in the code.
+    """
+    if True:
+        return fname.replace('/', '%2F')
+    else:
+        """ Normalize a string. Accept all alphanumeric characters, and "_-.", all
+        other characters are converted into hyphens. Then, add for some bad names (for example,
+        ".", "..").
+        """
+        bad_filenames = [".", ".."]
+        valid_chars = "_-."
+        retval=''
+        for c in fname:
+            if c in valid_chars:
+                retval += c
+            elif c.isalnum():
+                retval += c
+            else:
+                retval += '_'
+        # sanity check for filenames
+        if len(retval) == 0:
+            raise DXError("Empty filename origin{}".format(fname))
+        if retval in bad_filenames:
+            raise DXError("Normalized filename {norm} is invalid, original name={org}".format(retval, fname))
+        return retval
+
+def get_job_input_filenames(idir):
+    """
+    :param idir: input directory
+
+    Extract list of files, returns a set of directories to create, and
+    a set of files, with sources and destinations. The paths created are
+    absolute, they include *idir*
+    """
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
         job_input = json.load(fh)
@@ -144,7 +198,7 @@ def parse_job_input(idir):
             handler = dxpy.get_handler(value)
             if not isinstance(handler, dxpy.DXFile):
                 return
-            filename = handler.name
+            filename = make_unix_filename(handler.name)
             files.append({'trg_fname': os.path.join(idir, iname, filename),
                          'trg_dir': os.path.join(idir, iname),
                          'src_file_id': handler.id,

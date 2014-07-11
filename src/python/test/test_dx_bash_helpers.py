@@ -162,17 +162,25 @@ class TestDXBashHelpers(DXTestCase):
 
             job_handler = dxpy.get_handler(job_id)
             job_output = job_handler.output
-            pp = pprint.PrettyPrinter(indent=4)
-            pp.pprint(job_output)
 
-            # download the files from the cloud
-            f1_dxlink = job_output['first_file']
-            dxpy.download_dxfile(f1_dxlink, "f1.txt")
-            f2_dxlink = job_output['final_file']
-            dxpy.download_dxfile(f2_dxlink, "f2.txt")
+            # The output should include two files, this section verifies that they have
+            # the correct data.
+            def check_file_content(fname, tmp_fname, str_content):
+                ''' Download a file, read it from local disk, and verify that it has
+                    the correct contents'''
+                if not fname in job_output:
+                    raise "Error: key {} does not appear in the job output".format(fname)
+                dxlink = job_output[fname]
+                dxpy.download_dxfile(dxlink, tmp_fname)
+                with open (tmp_fname, "r") as fh:
+                    data=fh.read()
+                    print(data)
+                    if not (data.rstrip('\n') == str_content.rstrip('\n')):
+                        raise Exception("contents of file {} do not match".format(fname))
 
-            # compare the content
-            #dxpy. "contents of first_file"
+            check_file_content('first_file', "f1.txt", "contents of first_file")
+            check_file_content('final_file', "f2.txt", "1234ABCD")
+
 
 if __name__ == '__main__':
     unittest.main()
