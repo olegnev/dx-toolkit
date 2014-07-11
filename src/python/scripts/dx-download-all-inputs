@@ -17,10 +17,7 @@
 #   under the License.
 
 import os, sys, json, argparse
-
 import dxpy
-
-## contains specific helper functions
 from dxpy.utils import file_load_utils
 
 # Parse the command line
@@ -41,25 +38,26 @@ def create_dirs(idir, dirs):
         /in/seq1/NC_001122.fasta
 
     TODO: this call could fail, we need to report a reasonable error code
+
+    Note that we create a directory for every file array, even if
+    it has zero inputs.
     '''
-    if len(dirs) == 0:
-        return
-    ## create the <idir> itself
+    # create the <idir> itself
     file_load_utils.ensure_dir(idir)
-    ## create each subdir
+    # create each subdir
     for d in dirs:
         file_load_utils.ensure_dir(os.path.join(idir, d))
 
 
-## Input directory, where all inputs are downloaded
+# Input directory, where all inputs are downloaded
 idir = file_load_utils.get_input_dir()
 dirs, inputs = file_load_utils.parse_job_input(idir)
 
-## Create the directory structure, in preparation for download.
-## Allows performing the download in parallel.
+# Create the directory structure, in preparation for download.
+# Allows performing the download in parallel.
 create_dirs(idir, dirs)
 
-## Remove excluded records
+# Remove excluded inputs
 to_download = []
 for file_rec in inputs:
     iname = file_rec['iname']
@@ -68,8 +66,8 @@ for file_rec in inputs:
         continue
     to_download.append(file_rec)
 
-# Download the files, currently, this is done sequentially (one file at
-# a time). We are all set up to do this in parallel
+# Download the files. Currently, this is done sequentially (one file at
+# a time). We are all set up to do this in parallel.
 for file_rec in to_download:
     print("downloading file: " + file_rec['src_file_id'] + " to filesystem: " + file_rec['trg_fname'])
     dxpy.download_dxfile(file_rec['src_file_id'], file_rec['trg_fname'])

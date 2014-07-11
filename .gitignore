@@ -1,4 +1,4 @@
-TEST_RUN_JOBS/build/wheels/
+/build/wheels/
 /build/coverage/
 /build/info/version
 /build/wrapper_table.json

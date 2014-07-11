@@ -212,12 +212,7 @@ def get_job_input_filenames(idir):
             elif isinstance(value, list):
                 # This is a file array, we use the field name as the directory
                 for link in value:
-                    handler = dxpy.get_handler(link)
-                    if isinstance(handler, dxpy.DXFile):
-                        add_file(input_name, link)
-                    else:
-                        # we need to make sure this is a file. Is it possible that it won't be?
-                        print("Warning: link={} is not a file link".format(link))
+                    add_file(input_name, link)
         return dirs, files
 
 def get_input_spec():
