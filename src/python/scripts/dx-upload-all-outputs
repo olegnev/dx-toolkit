@@ -17,7 +17,7 @@
 #   under the License.
 
 ''' This helper script uploads all output files from the execution environment
-to the DNAnexus project cloud.
+to the job's workspace.
 
 Overview
    Upload everything that is in the output directory, and generate a
