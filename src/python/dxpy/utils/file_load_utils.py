@@ -31,14 +31,14 @@ A simple example of the job input, when run locally, is:
             "project": "project-1111",
             "id": "file-1111"
         }
-    }, 
+    },
     "seq1": {
         "$dnanexus_link": {
             "project": "project-2222",
             "id": "file-2222"
         }
     }
-    "blast_args": "", 
+    "blast_args": "",
     "evalue": 0.01
 }
 
@@ -61,7 +61,7 @@ File Arrays
             "project": "project-3333",
             "id": "file-3333"
         }
-    }, 
+    },
     {
         "$dnanexus_link": {
             "project": "project-4444",
@@ -82,11 +82,11 @@ will download into the execution environment:
 import json, os
 import dxpy
 from ..exceptions import DXError
-    
+
 def get_input_dir():
     '''
-    :rtype string
-    :returns path to input directory
+    :rtype : string
+    :returns : path to input directory
 
     Returns the input directory, where all inputs are downloaded
     '''
@@ -96,8 +96,8 @@ def get_input_dir():
 
 def get_output_dir():
     '''
-    :rtype string
-    :returns path to output directory
+    :rtype : string
+    :returns : path to output directory
 
     Returns the output directory, where all outputs are created, and
     uploaded from
@@ -143,35 +143,16 @@ def make_unix_filename(fname):
     :rtype: string
 
     The *fname* is just the file name, not the full path (e.g., xxx in /zzz/yyy/xxx).
-    The problem being solved here is that *fname* is just a python string, it
-    may contain characters that are invalid for a file name. For example, unicode chars, or
-    any of these: ".?|!"
-
-    Currently, all we do is replace the slashes, like in other places in the code.
+    The problem being solved here is that *fname* is a python string, it
+    may contain characters that are invalid for a file name. We replace all the slashes with %2F.
+    Another issue, is that the user may choose an invalid name. This is more of an issue on Windows,
+    which disallows names like {"aux", "com"}.
     """
-    if True:
-        return fname.replace('/', '%2F')
-    else:
-        """ Normalize a string. Accept all alphanumeric characters, and "_-.", all
-        other characters are converted into hyphens. Then, add for some bad names (for example,
-        ".", "..").
-        """
-        bad_filenames = [".", ".."]
-        valid_chars = "_-."
-        retval=''
-        for c in fname:
-            if c in valid_chars:
-                retval += c
-            elif c.isalnum():
-                retval += c
-            else:
-                retval += '_'
-        # sanity check for filenames
-        if len(retval) == 0:
-            raise DXError("Empty filename origin{}".format(fname))
-        if retval in bad_filenames:
-            raise DXError("Normalized filename {norm} is invalid, original name={org}".format(retval, fname))
-        return retval
+    # sanity check for filenames
+    bad_filenames = [".", ".."]
+    if fname in bad_filenames:
+        raise DXError("Invalid filename {}".format(fname))
+    return fname.replace('/', '%2F')
 
 def get_job_input_filenames(idir):
     """
@@ -185,13 +166,14 @@ def get_job_input_filenames(idir):
     with open(job_input_file) as fh:
         job_input = json.load(fh)
         files = []
+        trg_file_paths = set()   # all files to be downloaded
         dirs = set()  # directories to create under <idir>
-        
+
         # Local function for adding a file to the list of files to be created
-        # for example: 
+        # for example:
         #    iname == "seq1"
         #    value == { "$dnanexus_link": {
-        #       "project": "project-BKJfY1j0b06Z4y8PX8bQ094f", 
+        #       "project": "project-BKJfY1j0b06Z4y8PX8bQ094f",
         #       "id": "file-BKQGkgQ0b06xG5560GGQ001B"
         #    }
         def add_file(iname, value):
@@ -199,7 +181,11 @@ def get_job_input_filenames(idir):
             if not isinstance(handler, dxpy.DXFile):
                 return
             filename = make_unix_filename(handler.name)
-            files.append({'trg_fname': os.path.join(idir, iname, filename),
+            trg_fname = os.path.join(idir, iname, filename)
+            # check file uniqueness
+            if trg_fname in trg_file_paths:
+                raise DXError("filename {} is non unique, will be overwritten during download".format(filename))
+            files.append({'trg_fname': trg_fname,
                          'trg_dir': os.path.join(idir, iname),
                          'src_file_id': handler.id,
                          'iname': iname})
@@ -214,35 +200,3 @@ def get_job_input_filenames(idir):
                 for link in value:
                     add_file(input_name, link)
         return dirs, files
-
-def get_input_spec():
-    ''' Extract the inputSpec, if it exists
-    '''
-    input_spec = None
-    if 'DX_JOB_ID' in os.environ:
-        # works in the cloud, not locally
-        # print("found the job id");
-        job_desc = dxpy.describe(dxpy.JOB_ID)
-        desc = dxpy.describe(job_desc.get("app", job_desc.get("applet")))
-        if "inputSpec" in desc:
-            input_spec = desc["inputSpec"]
-    elif 'DX_TEST_DXAPP_JSON' in os.environ:
-        # works only locally
-        path_to_dxapp_json = os.environ['DX_TEST_DXAPP_JSON']
-        with open(path_to_dxapp_json, 'r') as fd:
-            dxapp_json = json.load(fd)
-            input_spec = dxapp_json.get('inputSpec')
-
-    # convert to a dictionary. Each record in the output spec
-    # has {name, class, optional} attributes.
-    if input_spec is None:
-        return {}
-
-    # for each field name, we want to know its class, and if it
-    # is optional
-    recs = {}
-    for spec in input_spec:
-        name = spec['name']
-        recs[name] = {'class': spec['class']}
-        recs[name]['optional'] = spec.get('optional', False)
-    return recs

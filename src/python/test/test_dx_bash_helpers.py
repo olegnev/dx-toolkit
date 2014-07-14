@@ -165,18 +165,18 @@ class TestDXBashHelpers(DXTestCase):
 
             # The output should include two files, this section verifies that they have
             # the correct data.
-            def check_file_content(fname, tmp_fname, str_content):
+            def check_file_content(in_param_name, tmp_fname, str_content):
                 ''' Download a file, read it from local disk, and verify that it has
                     the correct contents'''
-                if not fname in job_output:
-                    raise "Error: key {} does not appear in the job output".format(fname)
-                dxlink = job_output[fname]
+                if not in_param_name in job_output:
+                    raise "Error: key {} does not appear in the job output".format(in_param_name)
+                dxlink = job_output[in_param_name]
                 dxpy.download_dxfile(dxlink, tmp_fname)
                 with open (tmp_fname, "r") as fh:
                     data=fh.read()
                     print(data)
                     if not (data.rstrip('\n') == str_content.rstrip('\n')):
-                        raise Exception("contents of file {} do not match".format(fname))
+                        raise Exception("contents of file {} do not match".format(in_param_name))
 
             check_file_content('first_file', "f1.txt", "contents of first_file")
             check_file_content('final_file', "f2.txt", "1234ABCD")
