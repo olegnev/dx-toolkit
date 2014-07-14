@@ -161,6 +161,9 @@ def get_job_input_filenames(idir):
     Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations. The paths created are
     absolute, they include *idir*
+
+    Note: we analyze the file names, and make sure they are unique. An
+    exception is thrown if they are not.
     """
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
@@ -182,7 +185,7 @@ def get_job_input_filenames(idir):
                 return
             filename = make_unix_filename(handler.name)
             trg_fname = os.path.join(idir, iname, filename)
-            # check file uniqueness
+
             if trg_fname in trg_file_paths:
                 raise DXError("filename {} is non unique, will be overwritten during download".format(filename))
             files.append({'trg_fname': trg_fname,
