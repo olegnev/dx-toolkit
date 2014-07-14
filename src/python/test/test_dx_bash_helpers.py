@@ -163,6 +163,9 @@ class TestDXBashHelpers(DXTestCase):
             job_handler = dxpy.get_handler(job_id)
             job_output = job_handler.output
 
+            def strip_white_space(str):
+                return ''.join(str.split())
+
             # The output should include two files, this section verifies that they have
             # the correct data.
             def check_file_content(in_param_name, tmp_fname, str_content):
@@ -170,12 +173,14 @@ class TestDXBashHelpers(DXTestCase):
                     the correct contents'''
                 if not in_param_name in job_output:
                     raise "Error: key {} does not appear in the job output".format(in_param_name)
+
+
                 dxlink = job_output[in_param_name]
                 dxpy.download_dxfile(dxlink, tmp_fname)
                 with open (tmp_fname, "r") as fh:
                     data=fh.read()
                     print(data)
-                    if not (data.rstrip('\n') == str_content.rstrip('\n')):
+                    if not (strip_white_space(data) == strip_white_space(str_content)):
                         raise Exception("contents of file {} do not match".format(in_param_name))
 
             check_file_content('first_file', "f1.txt", "contents of first_file")
