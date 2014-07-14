@@ -10,7 +10,8 @@
     {"name": "seq2", "class": "file"},
     {"name": "ref",  "class": "array:file"},
     {"name": "bar",  "class": "file", "optional" : true},
-    {"name": "value", "class" : "int"}
+    {"name": "value", "class" : "int"},
+    {"name": "ages", "class": "array:int"}
   ],
   "outputSpec": [
     {"name": "result", "class": "file"},

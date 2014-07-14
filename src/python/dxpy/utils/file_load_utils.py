@@ -43,15 +43,17 @@ A simple example of the job input, when run locally, is:
 }
 
 The first two elements are files {seq1, seq2}, the other elements are
-{blast_args, evalue}. The file for seq1,seq2 should be saved into:
+{blast_args, evalue}. The files for seq1,seq2 should be saved into:
 <idir>/seq1/<filename>
 <idir>/seq2/<filename>
 
 An example for a shell command that would create these arguments is:
     $ dx run coolapp -iseq1=NC_000868.fasta -iseq2=NC_001422.fasta
 It would run an app named "coolapp", with file arguments for seq1 and seq2. Both NC_*
-files should have been uploaded to the cloud. File seq1 is supposed to appear in
-the execution environment at path:  <idir>/seq1/NC_000868.fasta
+files should be the names of files in a DNAnexus project (and should be resolved to their
+file IDs by dx). Subsequently, after dx-download-all-inputs is run,
+file seq1 should appear in the execution environment at path:
+    <idir>/seq1/NC_000868.fasta
 
 File Arrays
 
@@ -138,15 +140,15 @@ def ensure_dir(path):
 
 def make_unix_filename(fname):
     """
-    :param fname: filename
+    :param fname: the basename of a file (e.g., xxx in /zzz/yyy/xxx).
     :return: a valid unix filename
     :rtype: string
+    :raises DXError: if the filename is invalid on a Unix system
 
-    The *fname* is just the file name, not the full path (e.g., xxx in /zzz/yyy/xxx).
     The problem being solved here is that *fname* is a python string, it
     may contain characters that are invalid for a file name. We replace all the slashes with %2F.
-    Another issue, is that the user may choose an invalid name. This is more of an issue on Windows,
-    which disallows names like {"aux", "com"}.
+    Another issue, is that the user may choose an invalid name. Since we focus
+    on Unix systems, the only possibilies are "." and "..".
     """
     # sanity check for filenames
     bad_filenames = [".", ".."]
@@ -180,6 +182,8 @@ def get_job_input_filenames(idir):
         #       "id": "file-BKQGkgQ0b06xG5560GGQ001B"
         #    }
         def add_file(iname, value):
+            if not dxpy.is_dxlink(value):
+                return
             handler = dxpy.get_handler(value)
             if not isinstance(handler, dxpy.DXFile):
                 return
@@ -187,7 +191,7 @@ def get_job_input_filenames(idir):
             trg_fname = os.path.join(idir, iname, filename)
 
             if trg_fname in trg_file_paths:
-                raise DXError("filename {} is non unique, will be overwritten during download".format(filename))
+                raise DXError("Encountered multiple files which would have the same local filename {}".format(filename))
             files.append({'trg_fname': trg_fname,
                          'trg_dir': os.path.join(idir, iname),
                          'src_file_id': handler.id,
@@ -195,11 +199,10 @@ def get_job_input_filenames(idir):
             dirs.add(iname)
 
         for input_name, value in job_input.iteritems():
-            if dxpy.is_dxlink(value):
-                # This is a single file
-                add_file(input_name, value)
-            elif isinstance(value, list):
+            if isinstance(value, list):
                 # This is a file array, we use the field name as the directory
                 for link in value:
                     add_file(input_name, link)
+            else:
+                add_file(input_name, value)
         return dirs, files

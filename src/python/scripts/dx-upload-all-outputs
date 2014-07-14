@@ -17,7 +17,7 @@
 #   under the License.
 
 ''' This helper script uploads all output files from the execution environment
-to the cloud filesystem/object-system. 
+to the DNAnexus project cloud.
 
 Overview
    Upload everything that is in the output directory, and generate a
@@ -56,7 +56,7 @@ def report_error_and_exit(message):
 
 
 def get_output_spec():
-    ''' Extract the outputSpec, if it exists 
+    ''' Extract the outputSpec, if it exists
     '''
     output_spec = None
     if 'DX_JOB_ID' in os.environ:
@@ -75,8 +75,8 @@ def get_output_spec():
             dxapp_json = json.load(fd)
             output_spec = dxapp_json.get('outputSpec')
 
-    # convert to a dictionary. Each record in the output spec
-    # has {name, class} attributes. 
+    # convert to a dictionary. Each entry in the output spec
+    # has {name, class} attributes.
     if output_spec == None:
         return {}
 
@@ -117,12 +117,12 @@ def traverse_output_subdir(odir, subdir):
 
 def analyze_output_dir():
     '''
-    Figure out what the output directory looks like. 
+    Figure out what the output directory looks like.
     We are interested in elements of the form:
     <odir>/xxx/yyy
          xxx == key
          yyy == file name
- 
+
      Arrays look like this:
        <odir>/xxx/yyy
        <odir>/xxx/vvv
@@ -149,11 +149,11 @@ def analyze_output_dir():
 
 def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
     '''
-    Compare the subdirectries found in the output directory to the
+    Compare the subdirectories found in the output directory to the
     output specification, and adds annotations to the directory
     descriptions.
 
-    An output spec is a list of records with {class, name} attributes.
+    An output spec is a list of entries with {class, name} attributes.
     '''
     def sanity_check_field(key):
         '''Annotate with a class, and sanity check'''
@@ -162,7 +162,7 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
         s_rec['class'] = class_
         num_files = len(s_rec['files'])
         if class_ == 'file':
-            if not num_files == 1:
+            if num_files != 1:
                 report_error_and_exit("key {} is of class {} but there are {} files".format(key, class_, num_files))
         else:
             # array of files, there could be any number of files in the subdirectory (including zero)
@@ -172,8 +172,7 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
     for key in output_spec:
         '''Check that all the relevant output fields have been generated'''
         class_ = output_spec[key]['class']
-        if (class_ == 'file' or
-            class_ == 'array:file'):
+        if (class_ == 'file' or class_ == 'array:file'):
             # file field, with a directory
             if key not in subdir_recs:
                 sys.stderr.write("Warning: output key {} not generated\n".format(key))
@@ -193,7 +192,7 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
 def upload_all(subdirs):
     '''
      Upload everything that is in the output directory
-    Add references to the uploaded objects into the records.
+    Add references to the uploaded objects into the entries.
 
     note: currently, files are uploaded sequentially, not in
     parallel. This could be improved in the future.
@@ -217,7 +216,7 @@ def update_output_json(subdir_recs):
         with open(output_file, 'r') as fh:
             output_json = json.load(fh)
 
-    # Add one record to the json output file
+    # Add one entry to the json output file
     def add_rec_to_json(key, class_, dxlinks):
         if not key in output_json:
             if class_ == 'array:file':
@@ -234,7 +233,7 @@ def update_output_json(subdir_recs):
             else:
                 report_error_and_exit("Key {} was found in output but is not an array".format(key))
 
-    # Add all the records
+    # Add all the entries
     for key in subdir_recs:
         s_rec = subdir_recs[key]
         dxlinks = s_rec['dx_links']

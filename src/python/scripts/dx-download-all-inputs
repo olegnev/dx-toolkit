@@ -23,7 +23,9 @@ from dxpy.utils import file_load_utils
 # Parse the command line
 #
 # exclude -- a list of arguments to skip over
-parser = argparse.ArgumentParser(description='Download all the files as described in the input JSON file')
+parser = argparse.ArgumentParser(
+    description='Download all the files as described in the input JSON file.' +
+                ' Note that an exception is raised if files with the same name are given in the same array input.')
 parser.add_argument('--except',
                     help='Do not download the input with this name',
                     action="append",

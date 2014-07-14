@@ -372,23 +372,22 @@ class TestDXBashHelpers(DXTestCase):
         dxpy.upload_string("1234", name="A.txt")
 
         # this invocation should fail with a CLI exception
-        try:
+        with self.assertRaises(testutil.DXCalledProcessError):
             self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt'])
-        except testutil.DXCalledProcessError:
-            pass
-        except Exception as e:
-            print("Wrong kind of exception")
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            print(exc_type, exc_tb)
-            ##print(e)
-        finally:
-            dxpy.upload_string("ABCD", name="B.txt")
 
-            # these should succeed
-            self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt', '-iref=A.txt', '-iref=B.txt', "-ivalue=5"])
-            self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt', '-iref=A.txt', '-iref=B.txt',
-                                               "-ivalue=5"])
-            print("Done")
+        dxpy.upload_string("ABCD", name="B.txt")
+
+        # these should succeed
+        self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt',
+                                           '-iref=A.txt', '-iref=B.txt',
+                                           "-ivalue=5", '-iages=1'])
+        self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt',
+                                           '-iref=A.txt', '-iref=B.txt',
+                                           "-ivalue=5", '-iages=1'])
+        self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt',
+                                            '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
+                                            '-iages=1', '-iages=11', '-iages=33'])
+        print("Done")
 
     def test_sub_jobs(self):
         '''  Tests a bash script that generates sub-jobs '''
@@ -399,9 +398,10 @@ class TestDXBashHelpers(DXTestCase):
     def test_name_collision(self):
         '''  Tests that name collisions are handled correctly. This is supposed to fail.'''
         dxpy.upload_string("1234", name="A.txt")
-        self.run_test_app_locally('basic', ["-iseq1=A.txt", "-iseq2=A.txt",
-                                            '-iref=A.txt', '-iref=A.txt',
-                                            "-ivalue=5"])
+        with self.assertRaises(testutil.DXCalledProcessError):
+            self.run_test_app_locally('basic', ["-iseq1=A.txt", "-iseq2=A.txt",
+                                                '-iref=A.txt', '-iref=A.txt',
+                                                "-ivalue=5"])
 
 
 if __name__ == '__main__':

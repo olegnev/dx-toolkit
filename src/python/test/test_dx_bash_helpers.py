@@ -124,7 +124,7 @@ class TestDXBashHelpers(DXTestCase):
             applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'basic'), p.get_id())
 
             # Run the applet
-            applet_args = ['-iseq1=A.txt', '-iseq2=B.txt', '-iref=A.txt', '-iref=B.txt', "-ivalue=5"]
+            applet_args = ['-iseq1=A.txt', '-iseq2=B.txt', '-iref=A.txt', '-iref=B.txt', "-ivalue=5", "-iages=4"]
             cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
@@ -168,23 +168,27 @@ class TestDXBashHelpers(DXTestCase):
 
             # The output should include two files, this section verifies that they have
             # the correct data.
-            def check_file_content(in_param_name, tmp_fname, str_content):
+            def check_file_content(out_param_name, out_filename, tmp_fname, str_content):
                 ''' Download a file, read it from local disk, and verify that it has
                     the correct contents'''
-                if not in_param_name in job_output:
-                    raise "Error: key {} does not appear in the job output".format(in_param_name)
+                if not out_param_name in job_output:
+                    raise "Error: key {} does not appear in the job output".format(out_param_name)
+                dxlink = job_output[out_param_name]
 
+                # check that the filename gets preserved
+                trg_fname = dxpy.get_handler(dxlink).name
+                self.assertEqual(trg_fname, out_filename)
 
-                dxlink = job_output[in_param_name]
+                # download the file and check the contents
                 dxpy.download_dxfile(dxlink, tmp_fname)
                 with open (tmp_fname, "r") as fh:
                     data=fh.read()
                     print(data)
                     if not (strip_white_space(data) == strip_white_space(str_content)):
-                        raise Exception("contents of file {} do not match".format(in_param_name))
+                        raise Exception("contents of file {} do not match".format(out_param_name))
 
-            check_file_content('first_file', "f1.txt", "contents of first_file")
-            check_file_content('final_file', "f2.txt", "1234ABCD")
+            check_file_content('first_file', 'first_file.txt', "f1.txt", "contents of first_file")
+            check_file_content('final_file', 'final_file.txt', "f2.txt", "1234ABCD")
 
 
 if __name__ == '__main__':
