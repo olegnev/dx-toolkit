@@ -16,8 +16,8 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-''' This helper script uploads all output files from the virtual machine
-running in the cloud to the cloud filesystem (S3).
+''' This helper script uploads all output files from the execution environment
+to the cloud filesystem/object-system. 
 
 Overview
    Upload everything that is in the output directory, and generate a
