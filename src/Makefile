@@ -369,6 +369,12 @@ ifeq ($(OS), Windows_NT)
 else ifeq ($(CENTOS_MAJOR_VERSION), 5)
 	echo 'using gcc : 4.4 : g++44 ;' >> boost/tools/build/v2/user-config.jam
 	$(MAKE) boost_build
+else ifeq ($(UNAME), Darwin)
+	# Ensure that b2 uses the compiler named in the CXX env var, if it's set
+	if test -n "$$CXX"; then \
+	    echo "using darwin : : $$CXX ;" >> boost/tools/build/v2/user-config.jam; \
+	fi
+	$(MAKE) boost_build
 else
 	$(MAKE) boost_build
 endif

@@ -67,6 +67,15 @@ else
 	endif
 endif
 
+# Determine path to OS X dyldinfo util; as of 10.9 it's no longer in /usr/bin
+ifeq ($(UNAME), Darwin)
+DYLDINFO_PATH := $(shell type -p dyldinfo)
+ifndef DYLDINFO_PATH
+$(warning dyldinfo not found in PATH; setting explicit absolute path to it.)
+DYLDINFO_PATH := /Library/Developer/CommandLineTools/usr/bin/dyldinfo
+endif
+endif
+
 LDFLAGS += -lssl -lcrypto -lz -ldl -lmagic -lstdc++ -lm
 
 dxjson_objs = dxjson.o
@@ -99,11 +108,11 @@ else ifeq ($(UNAME), Linux)
 else ifeq ($(UNAME), Darwin)
 	cp -af {$(curl_dir)/lib,$(cares_dir)/lib,$(libmagic_dir)/lib,$(boost_dir)/stage/lib,$(openssl_dir)}/*.dylib dist/
 	mkdir -p dist/resources && install ca-certificates.crt dist/resources/
-	install $$(dyldinfo -dylibs ua|grep libstdc++) dist/
-	install $$(dyldinfo -dylibs ua|grep libgcc) dist/
+	install $$($(DYLDINFO_PATH) -dylibs ua|grep libstdc++) dist/
+	install $$($(DYLDINFO_PATH) -dylibs ua|grep libgcc) dist/
 	install -s ua dist/
 	for bin in dist/ua dist/*.dylib; do \
-	    for lib in $$(dyldinfo -dylibs $$bin|egrep -v '(for arch|attributes|/usr/lib)'); do \
+	    for lib in $$($(DYLDINFO_PATH) -dylibs $$bin|egrep -v '(for arch|attributes|/usr/lib)'); do \
 	        install_name_tool -change $$lib "@loader_path/$$(basename $$lib)" $$bin; \
 	    done; \
 	done
