@@ -21,6 +21,8 @@ DNANEXUS_HOME = $(CURDIR)/../..
 VERSION := $(shell cat $(DNANEXUS_HOME)/build/info/ua_version || echo 'UNKNOWN_VERSION')
 DXTOOLKIT_GITVERSION := $(shell cat $(DNANEXUS_HOME)/build/info/version || echo 'UNKNOWN_VERSION')
 CENTOS_MAJOR_VERSION := $(shell grep -o "CentOS release [0-9]\+" /etc/issue | sed -e "s/CentOS release //")
+# Set CLANG to 1 if the C++ compiler is Clang
+CLANG := $(shell echo | $(CXX) -dM -E - | grep __clang__ | cut -d' ' -f3)
 
 curl_dir = $(DNANEXUS_HOME)/src/curl/stage
 cares_dir = $(DNANEXUS_HOME)/src/c-ares/stage
@@ -108,8 +110,14 @@ else ifeq ($(UNAME), Linux)
 else ifeq ($(UNAME), Darwin)
 	cp -af {$(curl_dir)/lib,$(cares_dir)/lib,$(libmagic_dir)/lib,$(boost_dir)/stage/lib,$(openssl_dir)}/*.dylib dist/
 	mkdir -p dist/resources && install ca-certificates.crt dist/resources/
+# If using Clang on OS X, assume UA was linked against libc++.*.dylib instead
+# of libstdc++ / libgcc:
+ifeq ($(CLANG), 1)
+	install $$($(DYLDINFO_PATH) -dylibs ua|grep libc++) dist/
+else
 	install $$($(DYLDINFO_PATH) -dylibs ua|grep libstdc++) dist/
 	install $$($(DYLDINFO_PATH) -dylibs ua|grep libgcc) dist/
+endif
 	install -s ua dist/
 	for bin in dist/ua dist/*.dylib; do \
 	    for lib in $$($(DYLDINFO_PATH) -dylibs $$bin|egrep -v '(for arch|attributes|/usr/lib)'); do \

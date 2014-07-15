@@ -28,6 +28,8 @@ UNAME := $(shell uname)
 CENTOS_MAJOR_VERSION := $(shell test -e /etc/issue && (grep -o "CentOS release [0-9]\+" /etc/issue | sed -e "s/CentOS release //"))
 FEDORA_MAJOR_VERSION := $(shell test -e /etc/issue && (grep -o "Fedora release [0-9]\+" /etc/issue | sed -e "s/Fedora release //"))
 UBUNTU_VERSION := $(shell test -e /etc/issue && (grep -o "Ubuntu [0-9]\+\.[0-9]\+" /etc/issue | sed -e "s/Ubuntu //"))
+# Set CLANG to 1 if the C++ compiler is Clang
+CLANG := $(shell echo | $(CXX) -dM -E - | grep __clang__ | cut -d' ' -f3)
 
 ifndef CCACHE_DISABLE
 	export PATH := /usr/lib/ccache:$(PATH)
@@ -380,6 +382,14 @@ else
 endif
 
 boost_build:
+# Compiling boost 1.55 with Clang requires a few patches:
+ifeq ($(CLANG), 1)
+ifeq ($(BOOST_PV), 1.55)
+	cd boost; curl https://github.com/boostorg/atomic/commit/6bb71fdd8f7cc346d90fb14beb38b7297fc1ffd9.diff | patch -p2
+	cd boost; curl https://github.com/boostorg/atomic/commit/e4bde20f2eec0a51be14533871d2123bd2ab9cf3.diff | patch -p2
+	cd boost; curl https://github.com/boostorg/thread/commit/67528fc9.diff | patch -p2
+endif
+endif
 	cd boost; ./bootstrap.sh --with-libraries=${BOOST_LIBS}
 	cd boost; ./b2 --layout=tagged -j8 stage
 
