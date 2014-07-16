@@ -1,9 +1,9 @@
-dx login --staging
-dx select project-BP31z7Q0z43jB9xVxjg000bY
+dx-download-all-inputs -h
+dx-upload-all-outputs -h
+dx login --staging --noprojects && dx select project-BP31z7Q0z43jB9xVxjg000bY
 cat demo/run.sh
 dx-run-app-locally demo -iseq1=foo.txt -iseq2=bar.txt
-dx build demo -f
-dx run demo -iseq1=foo.txt -iseq2=bar.txt
+dx build demo -f --run -iseq1=foo.txt -iseq2=bar.txt
 dx find jobs
 dx watch job-BP320bj0z43k16XKYGb000Fj
 dx cat foo.txt bar.txt file-BP320v001gzvjvX7qvbQ018f
