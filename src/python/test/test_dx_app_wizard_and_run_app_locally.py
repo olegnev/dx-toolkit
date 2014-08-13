@@ -387,6 +387,11 @@ class TestDXBashHelpers(DXTestCase):
         self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt',
                                             '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
                                             '-iages=1', '-iages=11', '-iages=33'])
+
+        # check the except flags
+        self.run_test_app_locally('basic_except', ['-iseq1=A.txt', '-iseq2=B.txt',
+                                            '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
+                                            '-iages=1', '-iages=11', '-iages=33'])
         print("Done")
 
     def test_sub_jobs(self):
