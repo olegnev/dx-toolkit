@@ -81,7 +81,7 @@ will download into the execution environment:
 '''
 
 
-import json, os
+import json, os, math
 import dxpy
 from ..exceptions import DXError
 
@@ -181,28 +181,46 @@ def get_job_input_filenames(idir):
         #       "project": "project-BKJfY1j0b06Z4y8PX8bQ094f",
         #       "id": "file-BKQGkgQ0b06xG5560GGQ001B"
         #    }
-        def add_file(iname, value):
+        def add_file(iname, subdir, value):
             if not dxpy.is_dxlink(value):
                 return
             handler = dxpy.get_handler(value)
             if not isinstance(handler, dxpy.DXFile):
                 return
             filename = make_unix_filename(handler.name)
-            trg_fname = os.path.join(idir, iname, filename)
+            trg_dir = os.path.join(idir, iname)
+            if subdir is not None:
+                trg_dir = os.path.join(trg_dir, subdir)
 
             if trg_fname in trg_file_paths:
                 raise DXError("Encountered multiple files which would have the same local filename {}".format(filename))
-            files.append({'trg_fname': trg_fname,
-                         'trg_dir': os.path.join(idir, iname),
+            files.append({'trg_fname': os.path.join(trg_dir, trg_fname),
+                         'trg_dir': trg_dir,
                          'src_file_id': handler.id,
                          'iname': iname})
             dirs.add(iname)
 
+        # An array of inputs, for a single key. A directory
+        # will be created per array entry. For example, if the input key is
+        # FOO, and the inputs are {A, B, C}.vcf then, the directory structure
+        # will be:
+        #   <idir>/FOO/00/A.vcf
+        #   <idir>/FOO/01/B.vcf
+        #   <idir>/FOO/02/C.vcf
+        def add_file_array(input_name, links):
+            num_files = len(links)
+            num_digits = 1
+            if num_files > 0:
+                num_digits = math.ceil(math.log(num_files, 10))
+            dirs.add(os.path.join(idir, input_name))
+            for i in range(0, num_files-1):
+                subdir = str(i).zfill(num_digits)
+                add_file(input_name, subdir, links[i])
+
         for input_name, value in job_input.iteritems():
             if isinstance(value, list):
-                # This is a file array, we use the field name as the directory
-                for link in value:
-                    add_file(input_name, link)
+                # This is a file array
+                add_file_array(input, value)
             else:
-                add_file(input_name, value)
+                add_file(input_name, None, value)
         return dirs, files
