@@ -81,7 +81,7 @@ will download into the execution environment:
 '''
 
 
-import json, os, math
+import json, os, math, sys
 import dxpy
 from ..exceptions import DXError
 
@@ -156,23 +156,20 @@ def make_unix_filename(fname):
         raise DXError("Invalid filename {}".format(fname))
     return fname.replace('/', '%2F')
 
-def get_job_input_filenames(idir):
+def get_job_input_filenames():
     """
-    :param idir: input directory
-
     Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations. The paths created are
-    absolute, they include *idir*
+    relative.
 
-    Note: we analyze the file names, and make sure they are unique. An
-    exception is thrown if they are not.
+    Note: we analyze file names inside arrays, and create a separate subdirector
+    for each. This avoids stepping over duplicate names.
     """
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
         job_input = json.load(fh)
         files = []
-        trg_file_paths = set()   # all files to be downloaded
-        dirs = set()  # directories to create under <idir>
+        dirs = []  # directories to create under <idir>
 
         # Local function for adding a file to the list of files to be created
         # for example:
@@ -188,17 +185,16 @@ def get_job_input_filenames(idir):
             if not isinstance(handler, dxpy.DXFile):
                 return
             filename = make_unix_filename(handler.name)
-            trg_dir = os.path.join(idir, iname)
+            trg_dir = iname
             if subdir is not None:
+                sys.stdout.flush()
                 trg_dir = os.path.join(trg_dir, subdir)
-
-            if trg_fname in trg_file_paths:
-                raise DXError("Encountered multiple files which would have the same local filename {}".format(filename))
-            files.append({'trg_fname': os.path.join(trg_dir, trg_fname),
+            sys.stdout.flush()
+            files.append({'trg_fname': os.path.join(trg_dir, filename),
                          'trg_dir': trg_dir,
                          'src_file_id': handler.id,
                          'iname': iname})
-            dirs.add(iname)
+            dirs.append(trg_dir)
 
         # An array of inputs, for a single key. A directory
         # will be created per array entry. For example, if the input key is
@@ -211,16 +207,16 @@ def get_job_input_filenames(idir):
             num_files = len(links)
             num_digits = 1
             if num_files > 0:
-                num_digits = math.ceil(math.log(num_files, 10))
-            dirs.add(os.path.join(idir, input_name))
-            for i in range(0, num_files-1):
+                num_digits = int(math.ceil(math.log(num_files, 10)))
+            dirs.append(input_name)
+            for i in range(0, num_files):
                 subdir = str(i).zfill(num_digits)
                 add_file(input_name, subdir, links[i])
 
         for input_name, value in job_input.iteritems():
             if isinstance(value, list):
                 # This is a file array
-                add_file_array(input, value)
+                add_file_array(input_name, value)
             else:
                 add_file(input_name, None, value)
         return dirs, files

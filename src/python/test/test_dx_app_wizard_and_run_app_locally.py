@@ -400,14 +400,6 @@ class TestDXBashHelpers(DXTestCase):
         dxpy.upload_string("ABCD", name="B.txt")
         self.run_test_app_locally('with-subjobs', ["-ifiles=A.txt", "-ifiles=B.txt"])
 
-    def test_name_collision(self):
-        '''  Tests that name collisions are handled correctly. This is supposed to fail.'''
-        dxpy.upload_string("1234", name="A.txt")
-        with self.assertRaises(testutil.DXCalledProcessError):
-            self.run_test_app_locally('basic', ["-iseq1=A.txt", "-iseq2=A.txt",
-                                                '-iref=A.txt', '-iref=A.txt',
-                                                "-ivalue=5"])
-
 
 if __name__ == '__main__':
     unittest.main()

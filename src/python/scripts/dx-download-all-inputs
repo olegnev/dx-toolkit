@@ -76,7 +76,7 @@ def create_dirs(idir, dirs):
 
 # Input directory, where all inputs are downloaded
 idir = file_load_utils.get_input_dir()
-dirs, inputs = file_load_utils.get_job_input_filenames(idir)
+dirs, inputs = file_load_utils.get_job_input_filenames()
 
 # Create the directory structure, in preparation for download.
 # Allows performing the download in parallel.
@@ -94,5 +94,7 @@ for file_rec in inputs:
 # Download the files. Currently, this is done sequentially (one file at
 # a time). We are all set up to do this in parallel.
 for file_rec in to_download:
-    print("downloading file: " + file_rec['src_file_id'] + " to filesystem: " + file_rec['trg_fname'])
-    dxpy.download_dxfile(file_rec['src_file_id'], file_rec['trg_fname'])
+    src_file = file_rec['src_file_id']
+    trg_file = os.path.join(idir, file_rec['trg_fname'])
+    print("downloading file: " + src_file + " to filesystem: " + trg_file)
+    dxpy.download_dxfile(src_file, trg_file)
