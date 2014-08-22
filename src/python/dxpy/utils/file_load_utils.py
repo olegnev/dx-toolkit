@@ -80,7 +80,6 @@ will download into the execution environment:
 
 '''
 
-
 import json, os, math, sys
 import dxpy
 from ..exceptions import DXError

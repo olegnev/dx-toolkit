@@ -38,8 +38,12 @@ path
     $HOME/in/FOO/INPUT.TXT
 
 If an input is an array of files, then all files will be placed into the
-same directory.  It is an error if files with the same name are given in
-the same array input.
+same directory, with numbered subdirectories. For example, if the input key is
+FOO, and the inputs are {A, B, C}.vcf then, the directory structure
+will be:
+    $HOME/in/FOO/00/A.vcf
+                 01/B.vcf
+                 02/C.vcf
 '''
 
 # Parse the command line
