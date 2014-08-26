@@ -288,22 +288,14 @@ def update_output_json(subdir_recs):
         json.dump(output_json, fh, indent=4)
 
 
-## filter from a dictionary a list of matching keys
-def filter_dict(dict, excl_keys):
-    sub_dict = {}
-    for k, v in dict.iteritems():
-        if k not in excl_keys:
-            sub_dict[k] = v;
-    return sub_dict
-
 ## entry point
 output_spec = get_output_spec()
 subdir_recs = analyze_output_dir()
 
 # remove entries the user asked to exclude
 if len(args.exclude) > 0:
-    output_spec = filter_dict(output_spec, args.exclude)
-    subdir_recs = filter_dict(subdir_recs, args.exclude)
+    output_spec = file_load_utils.filter_dict(output_spec, args.exclude)
+    subdir_recs = file_load_utils.filter_dict(subdir_recs, args.exclude)
 
 # Compare against the output spec
 compare_to_output_spec_and_annotate(subdir_recs, output_spec)

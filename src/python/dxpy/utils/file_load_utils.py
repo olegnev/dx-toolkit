@@ -155,6 +155,14 @@ def make_unix_filename(fname):
         raise DXError("Invalid filename {}".format(fname))
     return fname.replace('/', '%2F')
 
+## filter from a dictionary a list of matching keys
+def filter_dict(dict, excl_keys):
+    sub_dict = {}
+    for k, v in dict.iteritems():
+        if k not in excl_keys:
+            sub_dict[k] = v;
+    return sub_dict
+
 def get_job_input_filenames():
     """
     Extract list of files, returns a set of directories to create, and
@@ -167,7 +175,7 @@ def get_job_input_filenames():
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
         job_input = json.load(fh)
-        files = []
+        files = {}
         dirs = []  # directories to create under <idir>
 
         # Local function for adding a file to the list of files to be created
@@ -188,11 +196,11 @@ def get_job_input_filenames():
             if subdir is not None:
                 sys.stdout.flush()
                 trg_dir = os.path.join(trg_dir, subdir)
-            sys.stdout.flush()
-            files.append({'trg_fname': os.path.join(trg_dir, filename),
-                         'trg_dir': trg_dir,
-                         'src_file_id': handler.id,
-                         'iname': iname})
+            if not files.has_key(iname):
+                files[iname] = []
+            files[iname].append({'trg_fname': os.path.join(trg_dir, filename),
+                                 'trg_dir': trg_dir,
+                                 'src_file_id': handler.id})
             dirs.append(trg_dir)
 
         # An array of inputs, for a single key. A directory
