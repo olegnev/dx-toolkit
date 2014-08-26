@@ -37,10 +37,10 @@ path
 
     $HOME/in/FOO/INPUT.TXT
 
-If an input is an array of files, then all files will be placed into the
-same directory, with numbered subdirectories. For example, if the input key is
-FOO, and the inputs are {A, B, C}.vcf then, the directory structure
-will be:
+If an input is an array of files, then all files will be placed into
+numbered subdirectories under a parent directory named for the
+input. For example, if the input key is FOO, and the inputs are {A, B,
+C}.vcf then, the directory structure will be:
     $HOME/in/FOO/00/A.vcf
                  01/B.vcf
                  02/C.vcf
@@ -82,9 +82,15 @@ def create_dirs(idir, dirs):
 idir = file_load_utils.get_input_dir()
 dirs, inputs = file_load_utils.get_job_input_filenames()
 
+# Exclude directories
+dirs_to_create = []
+for d in dirs:
+    if d not in args.exclude:
+        dirs_to_create.append(d)
+
 # Create the directory structure, in preparation for download.
 # Allows performing the download in parallel.
-create_dirs(idir, dirs)
+create_dirs(idir, dirs_to_create)
 
 # Remove excluded inputs
 to_download = []

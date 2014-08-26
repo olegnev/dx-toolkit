@@ -293,7 +293,7 @@ def filter_dict(dict, excl_keys):
     sub_dict = {}
     for k, v in dict.iteritems():
         if k not in excl_keys:
-            sub_dict[k] = v;
+            sub_dict[k] = v
     return sub_dict
 
 ## entry point
