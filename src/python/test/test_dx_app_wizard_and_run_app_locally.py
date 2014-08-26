@@ -390,8 +390,14 @@ class TestDXBashHelpers(DXTestCase):
 
         # check the except flags
         self.run_test_app_locally('basic_except', ['-iseq1=A.txt', '-iseq2=B.txt',
-                                            '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
-                                            '-iages=1', '-iages=11', '-iages=33'])
+                                                   '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
+                                                   '-iages=1', '-iages=11', '-iages=33'])
+
+        # test the parallel download feature
+        self.run_test_app_locally('basic_except', ['-iseq1=A.txt', '-iseq2=B.txt',
+                                                   '-iref=A.txt', '-iref=B.txt', '-iref=A.txt', '-iref=B.txt',
+                                                   '-iref=A.txt', '-iref=B.txt', '-iref=A.txt', '-iref=B.txt',
+                                                   "-ivalue=5", '-iages=1'])
         print("Done")
 
     def test_sub_jobs(self):
