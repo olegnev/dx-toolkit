@@ -159,13 +159,13 @@ def make_unix_filename(fname):
     return fname.replace('/', '%2F')
 
 def get_job_input_filenames():
-    """
-    Extract list of files, returns a set of directories to create, and
+    """Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations. The paths created are
-    relative.
+    relative to the input directory.
 
-    Note: go through file names inside arrays, and create a separate subdirectory
-    for each. This avoids clobbering files when duplicate filenames appear in an array.
+    Note: we go through file names inside arrays, and create a
+    separate subdirectory for each. This avoids clobbering files when
+    duplicate filenames appear in an array.
     """
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
@@ -192,7 +192,6 @@ def get_job_input_filenames():
             filename = make_unix_filename(handler.name)
             trg_dir = iname
             if subdir is not None:
-                sys.stdout.flush()
                 trg_dir = os.path.join(trg_dir, subdir)
             files.append({'trg_fname': os.path.join(trg_dir, filename),
                          'trg_dir': trg_dir,
