@@ -80,7 +80,10 @@ will download into the execution environment:
 
 '''
 
-import json, os, math, sys
+import json
+import os
+import math
+import sys
 import dxpy
 from ..exceptions import DXError
 
@@ -164,13 +167,13 @@ def filter_dict(dict, excl_keys):
     return sub_dict
 
 def get_job_input_filenames():
-    """
-    Extract list of files, returns a set of directories to create, and
+    """Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations. The paths created are
-    relative.
+    relative to the input directory.
 
-    Note: we analyze file names inside arrays, and create a separate subdirector
-    for each. This avoids stepping over duplicate names.
+    Note: we go through file names inside arrays, and create a
+    separate subdirectory for each. This avoids clobbering files when
+    duplicate filenames appear in an array.
     """
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
@@ -181,10 +184,13 @@ def get_job_input_filenames():
         # Local function for adding a file to the list of files to be created
         # for example:
         #    iname == "seq1"
+        #    subdir == "015"
         #    value == { "$dnanexus_link": {
         #       "project": "project-BKJfY1j0b06Z4y8PX8bQ094f",
         #       "id": "file-BKQGkgQ0b06xG5560GGQ001B"
         #    }
+        # will create a record describing that the file should
+        # be downloaded into seq1/015/<filename>
         def add_file(iname, subdir, value):
             if not dxpy.is_dxlink(value):
                 return
@@ -194,7 +200,6 @@ def get_job_input_filenames():
             filename = make_unix_filename(handler.name)
             trg_dir = iname
             if subdir is not None:
-                sys.stdout.flush()
                 trg_dir = os.path.join(trg_dir, subdir)
             if not files.has_key(iname):
                 files[iname] = []
@@ -212,13 +217,13 @@ def get_job_input_filenames():
         #   <idir>/FOO/02/C.vcf
         def add_file_array(input_name, links):
             num_files = len(links)
-            num_digits = 1
-            if num_files > 0:
-                num_digits = int(math.ceil(math.log(num_files, 10)))
+            if num_files == 0:
+                return
+            num_digits = len(str(num_files - 1))
             dirs.append(input_name)
-            for i in range(0, num_files):
+            for i, link in enumerate(links):
                 subdir = str(i).zfill(num_digits)
-                add_file(input_name, subdir, links[i])
+                add_file(input_name, subdir, link)
 
         for input_name, value in job_input.iteritems():
             if isinstance(value, list):

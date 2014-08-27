@@ -248,7 +248,6 @@ def upload_one_file(entry):
     path = os.path.join(entry['s_rec']['path'], entry['fname'])
     f_obj = dxpy.upload_local_file(path)
     entry['dxlink'] = dxpy.dxlink(f_obj)
-    print("uploaded file %s" % path)
 
 def sequential_upload_all(to_upload):
     '''Sequentially upload everything that is in the output directory.
