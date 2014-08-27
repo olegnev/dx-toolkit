@@ -17,7 +17,10 @@
 #   under the License.
 
 import concurrent.futures
-import os, sys, json, argparse
+import os
+import sys
+import json
+import argparse
 import dxpy
 from dxpy.utils import file_load_utils
 from dxpy.utils.printing import fill, refill_paragraphs, BOLD, RED
@@ -103,8 +106,6 @@ def parallel_file_download(to_download):
            try:
                data = future.result()
            except Exception as exc:
-               import pprint
-               pprint.pprint(file_rec)
                print('%r -> %s generated an exception: %v' % (file_rec['src_file_id'], file_rec['trg_fname'], exc))
                raise exc
            else:

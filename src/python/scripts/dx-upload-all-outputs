@@ -33,7 +33,11 @@ Overview
    (d) Generate a $HOME/job_output.json file that describes it.
 '''
 
-import os, sys, json, argparse
+import concurrent.futures
+import os
+import sys
+import json
+import argparse
 import dxpy
 from dxpy.utils import file_load_utils
 from dxpy.utils.printing import fill, refill_paragraphs, BOLD, RED
@@ -72,8 +76,11 @@ parser.add_argument('--except',
                     action="append",
                     dest="exclude",
                     default=[])
+parser.add_argument('--sequential',
+                    help='Download the files sequentially. Default is parallel download.')
 args = parser.parse_args()
 parser.parse_args()
+max_num_parallel_uploads = 8
 
 def report_error_and_exit(message):
     ''' Report an error, since this is called from a bash script, we
@@ -227,22 +234,60 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
                     "key {} is of class {} but it appears in the output directory".format(key, class_))
 
 
-def upload_all(subdirs):
+# Create an entry encapsulating the context required to upload a file.
+# The idea is to avoid sharing data between parallel threads of execution.
+def create_entry(s_rec, fname):
+    return {'s_rec': s_rec,
+            'fname': fname,
+            'dxlink': None}
+
+def upload_one_file(entry):
+    ## Upload the file
+    path = os.path.join(entry['s_rec']['path'], entry['fname'])
+    f_obj = dxpy.upload_local_file(path)
+    entry['dxlink'] = dxpy.dxlink(f_obj)
+
+def sequential_upload_all(subdirs):
     '''
      Upload everything that is in the output directory
     Add references to the uploaded objects into the entries.
-
-    note: currently, files are uploaded sequentially, not in
-    parallel. This could be improved in the future.
     '''
     for key in subdirs:
         s_rec = subdirs[key]
         for fname in s_rec['files']:
-            ## Upload the file
-            path = os.path.join(s_rec['path'], fname)
-            f_obj = dxpy.upload_local_file(path)
-            s_rec['dx_links'].append(dxpy.dxlink(f_obj))
+            e = create_entry(s_rec, fname)
+            upload_one_file(s_rec, fname, None)
+            s_rec['dx_links'].append(e['dxlink'])
 
+def parallel_upload_all(subdirs):
+    ''' same as sequential_upload_all, but in parallel '''
+    # Open the subdirectories hash into a list of entries. This avoids
+    # sharing data between concurrent threads.
+    to_upload = []
+    for key in subdirs:
+        s_rec = subdirs[key]
+        for fname in s_rec['files']:
+            to_upload.append(create_entry(s_rec, fname))
+
+    # upload concurrently
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_num_parallel_uploads) as executor:
+        future_files = {executor.submit(upload_one_file, e): e for e in to_upload}
+        for future in concurrent.futures.as_completed(future_files):
+            entry = future_files[future]
+            try:
+                data = future.result()
+            except Exception as exc:
+                import pprint
+                pprint.pprint(entry)
+                #print('%r -> %s generated an exception: %v' % (file_rec['src_file_id'], file_rec['trg_fname'], exc))
+                raise exc
+            else:
+                pass
+
+    # Uploads are complete, we can collect all results. This avoids
+    # data races.
+    for entry in to_upload:
+        entry['s_rec']['dx_links'].append(entry['dxlink'])
 
 def update_output_json(subdir_recs):
     ''' update the output json file.'''
@@ -300,5 +345,8 @@ if len(args.exclude) > 0:
 # Compare against the output spec
 compare_to_output_spec_and_annotate(subdir_recs, output_spec)
 
-upload_all(subdir_recs)
+if args.sequential:
+    sequential_upload_all(subdir_recs)
+else:
+    parallel_upload_all(subdir_recs)
 update_output_json(subdir_recs)
