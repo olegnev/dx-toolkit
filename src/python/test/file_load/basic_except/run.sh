@@ -5,10 +5,12 @@ main() {
     if [ -e "in/seq1" ]
     then
         echo "Error: file seq1 has been downloaded, in spite of the --except flag"
+        exit 1
     fi
     if [ -e "in/seq2" ]
     then
         echo "Error: file seq2 has been downloaded, in spite of the --except flag"
+        exit 1
     fi
 
     # Check file content
