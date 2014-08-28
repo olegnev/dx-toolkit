@@ -158,7 +158,6 @@ def make_unix_filename(fname):
         raise DXError("Invalid filename {}".format(fname))
     return fname.replace('/', '%2F')
 
-<<<<<<< HEAD
 ## filter from a dictionary a list of matching keys
 def filter_dict(dict, excl_keys):
     sub_dict = {}
@@ -167,8 +166,6 @@ def filter_dict(dict, excl_keys):
             sub_dict[k] = v;
     return sub_dict
 
-=======
->>>>>>> master
 def get_job_input_filenames():
     """Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations. The paths created are
