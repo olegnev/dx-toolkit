@@ -2558,7 +2558,7 @@ def run_one(args, executable, dest_proj, dest_path, preset_inputs=None, input_na
         "properties": args.properties,
         "details": args.details,
         "allow_ssh": args.allow_ssh,
-        "debug_on": args.debug_on,
+        "debug": {"debugOn": args.debug_on} if args.debug_on else None,
         "delay_workspace_destruction": args.delay_workspace_destruction,
         "priority": ("high" if args.watch else args.priority),
         "instance_type": args.instance_type,
@@ -2803,9 +2803,9 @@ def run(args):
 
     if args.allow_ssh is not None:
         args.allow_ssh = [i for i in args.allow_ssh if i is not None]
-    if args.allow_ssh == [] or (args.ssh and not args.allow_ssh):
+    if args.allow_ssh == [] or ((args.ssh or args.debug_on) and not args.allow_ssh):
         args.allow_ssh = ['*']
-    if args.ssh or args.allow_ssh:
+    if args.ssh or args.allow_ssh or args.debug_on:
         verify_ssh_config()
 
     try_call(process_extra_args, args)
@@ -3188,7 +3188,7 @@ def ssh(args, ssh_config_verified=False):
 
     sys.stdout.write("Waiting for {} to start...".format(args.job_id))
     sys.stdout.flush()
-    while job_desc['state'] != 'running':
+    while job_desc['state'] not in ['running', 'debug_hold']:
         time.sleep(1)
         job_desc = dxpy.describe(args.job_id)
         sys.stdout.write(".")
@@ -3208,6 +3208,7 @@ def ssh(args, ssh_config_verified=False):
             job_desc = dxpy.describe(args.job_id)
             sys.stdout.write(".")
             sys.stdout.flush()
+    sys.stdout.write("\n")
 
     if not (host and host_key):
         msg = "Cannot resolve hostname or hostkey for {}. Please check your permissions and run settings."
@@ -3216,6 +3217,26 @@ def ssh(args, ssh_config_verified=False):
     known_hosts_file = os.path.expanduser('~/.dnanexus_config/ssh_known_hosts')
     with open(known_hosts_file, 'a') as fh:
         fh.write("{job_id}.dnanexus.io {key}\n".format(job_id=args.job_id, key=host_key.rstrip()))
+
+    import socket
+    connected = False
+    sys.stdout.write("Checking connectivity to {}...".format(host))
+    sys.stdout.flush()
+    for i in range(12):
+        try:
+            socket.create_connection((host, 22), timeout=5)
+            connected = True
+            break
+        except Exception:
+            time.sleep(2)
+            sys.stdout.write(".")
+            sys.stdout.flush()
+    if connected:
+        sys.stdout.write(GREEN("OK") + "\n")
+    else:
+        msg = "Failed to connect to {h}. Please check your connectivity and try {cmd} again."
+        err_exit(msg.format(h=host, cmd=BOLD("dx ssh {}".format(args.job_id))),
+                 exception=DXCLIError())
 
     print("Connecting to", host)
     ssh_args = ['ssh', '-i', os.path.expanduser('~/.dnanexus_config/ssh_id'),
@@ -3337,6 +3358,21 @@ class DXArgumentParser(argparse.ArgumentParser):
         if message:
             pager(message, file=file)
 
+    def _check_value(self, action, value):
+        # Override argparse.ArgumentParser._check_value to eliminate "u'x'" strings in output that result from repr()
+        # calls in the original, and to line wrap the output
+
+        # converted value must be one of the choices (if specified)
+        if action.choices is not None and value not in action.choices:
+            choices = fill("(choose from {})".format(", ".join(action.choices)))
+            msg = "invalid choice: {choice}\n{choices}".format(choice=value, choices=choices)
+            err = argparse.ArgumentError(action, msg)
+            if USING_PYTHON2:
+                err.message = err.message.encode(sys_encoding)
+                if err.argument_name is not None:
+                    err.argument_name = err.argument_name.encode(sys_encoding)
+            raise err
+
     def exit(self, status=0, message=None):
         if isinstance(status, basestring):
             message = message + status if message else status
@@ -3346,6 +3382,8 @@ class DXArgumentParser(argparse.ArgumentParser):
         sys.exit(status)
 
     def error(self, message):
+        if USING_PYTHON2:
+            message = message.decode(sys_encoding)
         self.exit(2, '{help}\n{prog}: error: {msg}\n'.format(help=self.format_help(),
                                                              prog=self.prog,
                                                              msg=message))

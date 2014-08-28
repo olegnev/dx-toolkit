@@ -92,6 +92,7 @@ def download_one_file(file_rec):
     file_rec
 
 # Download the files sequentially
+#   to_download: list of tuples describing files to download
 def sequential_file_download(to_download):
     for file_rec in inputs:
         download_one_file(file_rec)
@@ -130,13 +131,13 @@ create_dirs(idir, dirs_to_create)
 if len(args.exclude) > 0:
     inputs = file_load_utils.filter_dict(inputs, args.exclude)
 
-# convert to a flat list of elements to download
+# Convert to a flat list of elements to download
 to_download=[]
 for ival_list in inputs.values():
     for ival in ival_list:
         to_download.append(ival)
 
-# Download the files.
+# Download the files
 if args.sequential:
     sequential_file_download(to_download)
 else:
