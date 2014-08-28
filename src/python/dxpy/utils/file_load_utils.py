@@ -204,7 +204,8 @@ def get_job_input_filenames():
                 files[iname] = []
             files[iname].append({'trg_fname': os.path.join(trg_dir, filename),
                                  'trg_dir': trg_dir,
-                                 'src_file_id': handler.id})
+                                 'src_file_id': handler.id,
+                                 'handler': handler})
             dirs.append(trg_dir)
 
         # An array of inputs, for a single key. A directory
@@ -270,25 +271,30 @@ def analyze_bash_vars():
             prefix = os.path.splitext(basename)[0]
 
             k_desc = key_descs[key]
-            k_desc['id'].append(os.path.join(idir, entry['src_file_id']))
+            k_desc['id'].append(dxpy.dxlink(entry['handler']))
             k_desc['filename'].append(basename)
             k_desc['prefix'].append(prefix)
-            k_desc['path'].append(filename)
+            k_desc['path'].append(os.path.join(idir, filename))
     return key_descs
 
+# Note: pipes.quote() to be replaced with shlex.quote() in Python 3 (see http://docs.python.org/2/library/pipes.html#pipes.quote)
+# TODO: Detect and warn about collisions with essential environment variables
 def print_bash_vars():
     key_descs = analyze_bash_vars()
 
     def string_of(v):
-        if isinstance(v, basestring):
-            return pipes.quote(v)
+        str=""
+        if len(v) == 1:
+            str = json.dumps(v[0])
         else:
-            return json.dumps(v)
+            l = map(json.dumps, v)
+            str = '( ' + " ".join(l) + ' )'
+        return pipes.quote(str)
 
     for key,k_desc in key_descs.iteritems():
-        print "export {k}=( {vlist} )".format(k=key, vlist=string_of(k_desc['id']))
-        print "export {k}_filename=( {vlist} )".format(k=key, vlist=string_of(k_desc['filename']))
-        print "export {k}_prefix=( {vlist} )".format(k=key, vlist=string_of(k_desc['prefix']))
-        print "export {k}_path=( {vlist} )".format(k=key, vlist=string_of(k_desc['path']))
+        print "export {k}={vlist}".format(k=key, vlist=string_of(k_desc['id']))
+        print "export {k}_filename={vlist}".format(k=key, vlist=string_of(k_desc['filename']))
+        print "export {k}_prefix={vlist}".format(k=key, vlist=string_of(k_desc['prefix']))
+        print "export {k}_path={vlist}".format(k=key, vlist=string_of(k_desc['path']))
 
 
