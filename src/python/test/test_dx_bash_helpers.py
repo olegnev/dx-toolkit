@@ -167,6 +167,12 @@ class TestDXBashHelpers(DXTestCase):
             def strip_white_space(str):
                 return ''.join(str.split())
 
+            def silent_file_remove(filename):
+                try:
+                    os.remove(filename)
+                except OSError:
+                    pass
+
             # The output should include two files, this section verifies that they have
             # the correct data.
             def check_file_content(out_param_name, out_filename, tmp_fname, str_content):
@@ -187,6 +193,7 @@ class TestDXBashHelpers(DXTestCase):
                     print(data)
                     if not (strip_white_space(data) == strip_white_space(str_content)):
                         raise Exception("contents of file {} do not match".format(out_param_name))
+                silent_file_remove(tmp_fname)
 
             check_file_content('first_file', 'first_file.txt', "f1.txt", "contents of first_file")
             check_file_content('final_file', 'final_file.txt', "f2.txt", "1234ABCD")

@@ -157,6 +157,14 @@ def make_unix_filename(fname):
         raise DXError("Invalid filename {}".format(fname))
     return fname.replace('/', '%2F')
 
+## filter from a dictionary a list of matching keys
+def filter_dict(dict, excl_keys):
+    sub_dict = {}
+    for k, v in dict.iteritems():
+        if k not in excl_keys:
+            sub_dict[k] = v;
+    return sub_dict
+
 def get_job_input_filenames():
     """Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations. The paths created are
@@ -169,7 +177,7 @@ def get_job_input_filenames():
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
         job_input = json.load(fh)
-        files = []
+        files = {}
         dirs = []  # directories to create under <idir>
 
         # Local function for adding a file to the list of files to be created
@@ -192,10 +200,11 @@ def get_job_input_filenames():
             trg_dir = iname
             if subdir is not None:
                 trg_dir = os.path.join(trg_dir, subdir)
-            files.append({'trg_fname': os.path.join(trg_dir, filename),
-                         'trg_dir': trg_dir,
-                         'src_file_id': handler.id,
-                         'iname': iname})
+            if not files.has_key(iname):
+                files[iname] = []
+            files[iname].append({'trg_fname': os.path.join(trg_dir, filename),
+                                 'trg_dir': trg_dir,
+                                 'src_file_id': handler.id})
             dirs.append(trg_dir)
 
         # An array of inputs, for a single key. A directory
@@ -223,7 +232,7 @@ def get_job_input_filenames():
                 add_file(input_name, None, value)
         return dirs, files
 
-def analyze_bash_vars(fname):
+def analyze_bash_vars():
     '''
     This function examines the input file, and calculates variables to
     instantiate in the shell environment. It is called right before starting the
@@ -245,33 +254,28 @@ def analyze_bash_vars(fname):
     export genes_filename=(A.txt B.txt)
     export genes_prefix=(A B)
     export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
-
-    eval $(python -c 'import json, pipes; print "\n".join(["export {k}=( {vlist} )".format(k=k, vlist=" ".join([pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v])) if isinstance(v, list) else "export {k}={v}".format(k=k, v=pipes.quote(v if isinstance(v, basestring) else json.dumps(v))) for k, v in json.load(open("job_input.json")).iteritems()])')
 '''
     idir = get_input_dir()
-    dirs,file_entries = get_job_input_filenames(idir)
+    dirs,file_entries = get_job_input_filenames()
     key_descs = {}
-    for key, fentry in file_entries.iteritems():
+    for key, entries in file_entries.iteritems():
         if key not in key_descs:
-            key_descs[key] = {'id': []
-                              'filename': []
-                              'prefix': []
+            key_descs[key] = {'id': [],
+                              'filename': [],
+                              'prefix': [],
                               'path': []}
-        abs_filename = fentry['trg_fname']
-        basename = os.path.basename(abs_filename)
-        prefix = os.path.splitext(basename)[0]
+        for entry in entries:
+            filename = entry['trg_fname']
+            basename = os.path.basename(filename)
+            prefix = os.path.splitext(basename)[0]
 
-        k_desc = key_descs[key]
-        k_desc['id'].append(fentry['src_file_id'])
-        k_desc['filename'].append(basename)
-        k_desc['prefix'].append(prefix)
-        k_desc['path'].append(abs_filename)
+            k_desc = key_descs[key]
+            k_desc['id'].append(os.path.join(idir, entry['src_file_id']))
+            k_desc['filename'].append(basename)
+            k_desc['prefix'].append(prefix)
+            k_desc['path'].append(filename)
     return key_descs
 
-#    export genes=("$dnanexus_link {id: file-xxxx}" "$dnanexus_link {id: file-yyyy}")
-#    export genes_filename=(A.txt B.txt)
-#    export genes_prefix=(A B)
-#    export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
 def print_bash_vars():
     key_descs = analyze_bash_vars()
 
