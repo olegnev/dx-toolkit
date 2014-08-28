@@ -157,55 +157,70 @@ def make_unix_filename(fname):
         raise DXError("Invalid filename {}".format(fname))
     return fname.replace('/', '%2F')
 
-def get_job_input_filenames(idir):
-    """
-    :param idir: input directory
-
-    Extract list of files, returns a set of directories to create, and
+def get_job_input_filenames():
+    """Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations. The paths created are
-    absolute, they include *idir*
+    relative to the input directory.
 
-    Note: we analyze the file names, and make sure they are unique. An
-    exception is thrown if they are not.
+    Note: we go through file names inside arrays, and create a
+    separate subdirectory for each. This avoids clobbering files when
+    duplicate filenames appear in an array.
     """
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
         job_input = json.load(fh)
         files = []
-        trg_file_paths = set()   # all files to be downloaded
-        dirs = set()  # directories to create under <idir>
+        dirs = []  # directories to create under <idir>
 
         # Local function for adding a file to the list of files to be created
         # for example:
         #    iname == "seq1"
+        #    subdir == "015"
         #    value == { "$dnanexus_link": {
         #       "project": "project-BKJfY1j0b06Z4y8PX8bQ094f",
         #       "id": "file-BKQGkgQ0b06xG5560GGQ001B"
         #    }
-        def add_file(iname, value):
+        # will create a record describing that the file should
+        # be downloaded into seq1/015/<filename>
+        def add_file(iname, subdir, value):
             if not dxpy.is_dxlink(value):
                 return
             handler = dxpy.get_handler(value)
             if not isinstance(handler, dxpy.DXFile):
                 return
             filename = make_unix_filename(handler.name)
-            trg_fname = os.path.join(idir, iname, filename)
-
-            if trg_fname in trg_file_paths:
-                raise DXError("Encountered multiple files which would have the same local filename {}".format(filename))
-            files.append({'trg_fname': trg_fname,
-                         'trg_dir': os.path.join(idir, iname),
+            trg_dir = iname
+            if subdir is not None:
+                trg_dir = os.path.join(trg_dir, subdir)
+            files.append({'trg_fname': os.path.join(trg_dir, filename),
+                         'trg_dir': trg_dir,
                          'src_file_id': handler.id,
                          'iname': iname})
-            dirs.add(iname)
+            dirs.append(trg_dir)
+
+        # An array of inputs, for a single key. A directory
+        # will be created per array entry. For example, if the input key is
+        # FOO, and the inputs are {A, B, C}.vcf then, the directory structure
+        # will be:
+        #   <idir>/FOO/00/A.vcf
+        #   <idir>/FOO/01/B.vcf
+        #   <idir>/FOO/02/C.vcf
+        def add_file_array(input_name, links):
+            num_files = len(links)
+            if num_files == 0:
+                return
+            num_digits = len(str(num_files - 1))
+            dirs.append(input_name)
+            for i, link in enumerate(links):
+                subdir = str(i).zfill(num_digits)
+                add_file(input_name, subdir, link)
 
         for input_name, value in job_input.iteritems():
             if isinstance(value, list):
-                # This is a file array, we use the field name as the directory
-                for link in value:
-                    add_file(input_name, link)
+                # This is a file array
+                add_file_array(input_name, value)
             else:
-                add_file(input_name, value)
+                add_file(input_name, None, value)
         return dirs, files
 
 def analyze_bash_vars(fname):
@@ -236,31 +251,40 @@ def analyze_bash_vars(fname):
     idir = get_input_dir()
     dirs,file_entries = get_job_input_filenames(idir)
     key_descs = {}
-    for fentry in file_entries:
-        key = fentry['iname']
+    for key, fentry in file_entries.iteritems():
         if key not in key_descs:
             key_descs[key] = {'id': []
                               'filename': []
                               'prefix': []
                               'path': []}
-        k_desc = key_descs[key]
         abs_filename = fentry['trg_fname']
         basename = os.path.basename(abs_filename)
         prefix = os.path.splitext(basename)[0]
 
+        k_desc = key_descs[key]
         k_desc['id'].append(fentry['src_file_id'])
         k_desc['filename'].append(basename)
         k_desc['prefix'].append(prefix)
         k_desc['path'].append(abs_filename)
     return key_descs
 
+#    export genes=("$dnanexus_link {id: file-xxxx}" "$dnanexus_link {id: file-yyyy}")
+#    export genes_filename=(A.txt B.txt)
+#    export genes_prefix=(A B)
+#    export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
 def print_bash_vars():
     key_descs = analyze_bash_vars()
-    for key,desc in key_descs.iteritems():
-        print "export {k}=( {vlist} )".format(k=key, vlist=" ".join([
-            pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v]))
-                 if isinstance(v, list)
-                 else "export {k}={v}".format(k=k,
-                                              v=pipes.quote(v if isinstance(v, basestring) else json.dumps(v))) for k, v in
-                 json.load(open("job_input.json")).iteritems()])
+
+    def string_of(v):
+        if isinstance(v, basestring):
+            return pipes.quote(v)
+        else:
+            return json.dumps(v)
+
+    for key,k_desc in key_descs.iteritems():
+        print "export {k}=( {vlist} )".format(k=key, vlist=string_of(k_desc['id']))
+        print "export {k}_filename=( {vlist} )".format(k=key, vlist=string_of(k_desc['filename']))
+        print "export {k}_prefix=( {vlist} )".format(k=key, vlist=string_of(k_desc['prefix']))
+        print "export {k}_path=( {vlist} )".format(k=key, vlist=string_of(k_desc['path']))
+
 
