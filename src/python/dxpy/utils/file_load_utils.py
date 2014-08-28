@@ -80,8 +80,9 @@ will download into the execution environment:
 
 '''
 
-
-import json, os
+import json
+import pipes
+import os
 import dxpy
 from ..exceptions import DXError
 
@@ -206,3 +207,60 @@ def get_job_input_filenames(idir):
             else:
                 add_file(input_name, value)
         return dirs, files
+
+def analyze_bash_vars(fname):
+    '''
+    This function examines the input file, and calculates variables to
+    instantiate in the shell environment. It is called right before starting the
+    exeuction of an app in a worker.
+
+    For each input key, we want to have
+    $var
+    $var_filename
+    $var_prefix
+       remove last dot (+gz), and/or remove patterns
+    $var_path
+       $HOME/in/var/$var_filename
+
+    For example,
+    $HOME/in/genes/A.txt
+                   B.txt
+
+    export genes=("$dnanexus_link {id: file-xxxx}" "$dnanexus_link {id: file-yyyy}")
+    export genes_filename=(A.txt B.txt)
+    export genes_prefix=(A B)
+    export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
+
+    eval $(python -c 'import json, pipes; print "\n".join(["export {k}=( {vlist} )".format(k=k, vlist=" ".join([pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v])) if isinstance(v, list) else "export {k}={v}".format(k=k, v=pipes.quote(v if isinstance(v, basestring) else json.dumps(v))) for k, v in json.load(open("job_input.json")).iteritems()])')
+'''
+    idir = get_input_dir()
+    dirs,file_entries = get_job_input_filenames(idir)
+    key_descs = {}
+    for fentry in file_entries:
+        key = fentry['iname']
+        if key not in key_descs:
+            key_descs[key] = {'id': []
+                              'filename': []
+                              'prefix': []
+                              'path': []}
+        k_desc = key_descs[key]
+        abs_filename = fentry['trg_fname']
+        basename = os.path.basename(abs_filename)
+        prefix = os.path.splitext(basename)[0]
+
+        k_desc['id'].append(fentry['src_file_id'])
+        k_desc['filename'].append(basename)
+        k_desc['prefix'].append(prefix)
+        k_desc['path'].append(abs_filename)
+    return key_descs
+
+def print_bash_vars():
+    key_descs = analyze_bash_vars()
+    for key,desc in key_descs.iteritems():
+        print "export {k}=( {vlist} )".format(k=key, vlist=" ".join([
+            pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v]))
+                 if isinstance(v, list)
+                 else "export {k}={v}".format(k=k,
+                                              v=pipes.quote(v if isinstance(v, basestring) else json.dumps(v))) for k, v in
+                 json.load(open("job_input.json")).iteritems()])
+
