@@ -187,6 +187,7 @@ class TestDXBashHelpers(DXTestCase):
                 self.assertEqual(trg_fname, out_filename)
 
                 # download the file and check the contents
+                silent_file_remove(tmp_fname)
                 dxpy.download_dxfile(dxlink, tmp_fname)
                 with open (tmp_fname, "r") as fh:
                     data=fh.read()
