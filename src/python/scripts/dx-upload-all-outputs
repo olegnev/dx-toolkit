@@ -236,8 +236,8 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
 
 # Create an entry encapsulating the context required to upload a file.
 # The idea is to avoid sharing data between parallel threads of execution.
-def create_entry(s_rec, fname):
-    return {'s_rec': s_rec,
+def create_entry(subdir_desc, fname):
+    return {'subdir_desc': subdir_desc,
             'fname': fname,
             'dxlink': None}
 
@@ -245,28 +245,28 @@ def upload_one_file(entry):
     '''Upload a file from the output directory. Record a reference to the
     uploaded object in the entry.
     '''
-    path = os.path.join(entry['s_rec']['path'], entry['fname'])
+    path = os.path.join(entry['subdir_desc']['path'], entry['fname'])
     f_obj = dxpy.upload_local_file(path)
     entry['dxlink'] = dxpy.dxlink(f_obj)
     print("uploaded file %s" % path)
 
-def sequential_upload_all(to_upload):
+def sequential_file_upload(to_upload):
     '''Sequentially upload everything that is in the output directory.
     '''
     for entry in to_upload:
         upload_one_file(entry)
 
-def parallel_upload_all(to_upload):
-    ''' same as sequential_upload_all, but in parallel '''
+def parallel_file_upload(to_upload):
+    ''' same as sequential_file_upload, but in parallel '''
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_num_parallel_uploads) as executor:
         future_files = {executor.submit(upload_one_file, e): e for e in to_upload}
         for future in concurrent.futures.as_completed(future_files):
             entry = future_files[future]
             try:
-                data = future.result()
+                future.result()
             except Exception as exc:
                 print('file %s generated an exception %r' % (entry['fname'], entry['dxlink']))
-                raise exc
+                raise
             else:
                 pass
 
@@ -299,13 +299,13 @@ def update_output_json(subdir_recs):
 
     # Add all the entries
     for key in subdir_recs:
-        s_rec = subdir_recs[key]
-        dxlinks = s_rec['dx_links']
+        subdir_desc = subdir_recs[key]
+        dxlinks = subdir_desc['dx_links']
         if len(dxlinks) == 0:
             continue
         class_ = None
-        if 'class' in s_rec:
-            class_ = s_rec['class']
+        if 'class' in subdir_desc:
+            class_ = subdir_desc['class']
         add_rec_to_json(key, class_, dxlinks)
 
     # write it back out
@@ -337,19 +337,19 @@ compare_to_output_spec_and_annotate(subdir_recs, output_spec)
 # sharing data between concurrent threads.
 to_upload = []
 for key in subdir_recs:
-    s_rec = subdir_recs[key]
-    for fname in s_rec['files']:
-        to_upload.append(create_entry(s_rec, fname))
+    subdir_desc = subdir_recs[key]
+    for fname in subdir_desc['files']:
+        to_upload.append(create_entry(subdir_desc, fname))
 
 # upload concurrently
 if args.sequential:
-    sequential_upload_all(to_upload)
+    sequential_file_upload(to_upload)
 else:
-    parallel_upload_all(to_upload)
+    parallel_file_upload(to_upload)
 
 # Uploads are complete, we can collect all results. This avoids
 # data races in the parallel upload case.
 for entry in to_upload:
-    entry['s_rec']['dx_links'].append(entry['dxlink'])
+    entry['subdir_desc']['dx_links'].append(entry['dxlink'])
 
 update_output_json(subdir_recs)
