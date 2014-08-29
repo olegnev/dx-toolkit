@@ -127,6 +127,16 @@ def get_output_json_file():
     home_dir = os.environ.get('HOME')
     return os.path.join(home_dir, "job_output.json")
 
+def rm_output_json_file():
+    """ Warning: this is not for casual use.
+    It erases the output json file, and should be used for testing purposes only.
+    """
+    path = get_output_json_file()
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
 def ensure_dir(path):
     """
     :param path: path to directory to be created

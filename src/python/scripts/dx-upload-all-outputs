@@ -78,6 +78,9 @@ parser.add_argument('--except',
                     default=[])
 parser.add_argument('--sequential',
                     help='Download the files sequentially. Default is parallel download.')
+parser.add_argument('--clearJSON',
+                    help='Cleares the output JSON file prior to starting upload.')
+
 args = parser.parse_args()
 parser.parse_args()
 max_num_parallel_uploads = 8
@@ -149,7 +152,7 @@ def traverse_output_subdir(odir, subdir):
     '''
     files = []
     for fname in os.listdir(subdir):
-        path = os.path.join(odir, fname)
+        path = os.path.join(odir, subdir, fname)
         if os.path.isdir(path):
             # ignore directories
             continue
@@ -352,4 +355,6 @@ else:
 for entry in to_upload:
     entry['subdir_desc']['dx_links'].append(entry['dxlink'])
 
+if args.clearJSON:
+    file_load_utils.rm_output_json_file()
 update_output_json(subdir_recs)
