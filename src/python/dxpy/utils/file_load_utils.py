@@ -134,8 +134,10 @@ def rm_output_json_file():
     path = get_output_json_file()
     try:
         os.remove(path)
-    except OSError:
-        pass
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            pass
+        raise e
 
 def ensure_dir(path):
     """

@@ -62,8 +62,8 @@ parser.add_argument('--except',
                     action="append",
                     dest="exclude",
                     default=[])
-parser.add_argument('--sequential',
-                    help='Download the files sequentially. Default is parallel download.')
+parser.add_argument('--parallel',
+                    help='Download the files in parallel. Default is parallel download.')
 args = parser.parse_args()
 max_num_parallel_downloads = 8
 
@@ -89,7 +89,7 @@ def download_one_file(file_rec):
     trg_file = os.path.join(idir, file_rec['trg_fname'])
     print("downloading file: " + src_file + " to filesystem: " + trg_file)
     dxpy.download_dxfile(src_file, trg_file)
-    file_rec
+    return file_rec
 
 # Download the files sequentially
 #   to_download: list of tuples describing files to download
@@ -137,7 +137,7 @@ for ival_list in inputs.values():
     to_download.extend(ival_list)
 
 # Download the files
-if args.sequential:
-    sequential_file_download(to_download)
-else:
+if args.parallel:
     parallel_file_download(to_download)
+else:
+    sequential_file_download(to_download)
