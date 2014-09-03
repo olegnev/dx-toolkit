@@ -220,5 +220,46 @@ class TestDXBashHelpers(DXTestCase):
             run(cmd_args, env=env)
 
 
+class TestDXBashHelpersBenchmark(DXTestCase):
+
+    def create_file_of_size(self, fname, size_bytes):
+        assert(size_bytes > 1);
+        try:
+            os.remove(fname)
+        except:
+            pass
+        with open(fname, "wb") as out:
+            out.seek(size_bytes - 1)
+            out.write('\0')
+
+    def run_applet_with_flags(self, flag_list):
+        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
+            env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
+
+            # Upload file
+            self.create_file_of_size("A.txt", 1024 * 1024);
+            remote_file = dxpy.upload_local_file(filename="A.txt", project=p.get_id(), folder='/')
+
+            # Build the applet, patching in the bash helpers from the
+            # local checkout
+            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'benchmark'), p.get_id())
+
+            # Add several files to the output
+            applet_args = []
+            for i in range(0, 40):
+                applet_args.append('-iref=A.txt')
+            cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
+            cmd_args.extend(applet_args)
+            cmd_args.extend(flag_list)
+            run(cmd_args, env=env)
+
+    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    def test_seq(self):
+        self.run_applet_with_flags(["-iparallel=false"])
+
+    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    def test_par(self):
+        self.run_applet_with_flags(["-iparallel=true"])
+
 if __name__ == '__main__':
     unittest.main()
