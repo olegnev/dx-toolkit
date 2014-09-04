@@ -232,12 +232,12 @@ class TestDXBashHelpersBenchmark(DXTestCase):
             out.seek(size_bytes - 1)
             out.write('\0')
 
-    def run_applet_with_flags(self, flag_list):
+    def run_applet_with_flags(self, flag_list, num_files, file_size_bytes):
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
             env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
 
             # Upload file
-            self.create_file_of_size("A.txt", 1024 * 1024);
+            self.create_file_of_size("A.txt", file_size_bytes);
             remote_file = dxpy.upload_local_file(filename="A.txt", project=p.get_id(), folder='/')
 
             # Build the applet, patching in the bash helpers from the
@@ -246,20 +246,32 @@ class TestDXBashHelpersBenchmark(DXTestCase):
 
             # Add several files to the output
             applet_args = []
-            for i in range(0, 40):
+            for i in range(0, num_files):
                 applet_args.append('-iref=A.txt')
-            cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
+            cmd_args = ['dx', 'run', '--yes', '--watch', '--instance-type=mem1_ssd1_x2', applet_id]
             cmd_args.extend(applet_args)
             cmd_args.extend(flag_list)
             run(cmd_args, env=env)
 
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_seq(self):
-        self.run_applet_with_flags(["-iparallel=false"])
+        self.run_applet_with_flags(["-iparallel=false"], 40, 1024 * 1024)
 
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_par(self):
-        self.run_applet_with_flags(["-iparallel=true"])
+        self.run_applet_with_flags(["-iparallel=true"], 40, 1024 * 1024)
+
+    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    def test_seq_100m(self):
+        self.run_applet_with_flags(["-iparallel=false"], 40, 100 * 1024 * 1024)
+
+    def test_par_100m(self):
+        self.run_applet_with_flags(["-iparallel=true"], 40, 100 * 1024 * 1024)
+
+    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    def test_par_1g(self):
+        self.run_applet_with_flags(["-iparallel=true"], 10, 1024 * 1024 * 1024)
+
 
 if __name__ == '__main__':
     unittest.main()

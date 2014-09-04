@@ -6,7 +6,7 @@
     "interpreter": "bash"
   },
   "inputSpec": [
-    {"name": "parallel", "class": "string", "optional": true},
+    {"name": "parallel", "class": "boolean", "optional": true},
     {"name": "ref",  "class": "array:file"}
   ],
   "outputSpec": [

@@ -1,8 +1,8 @@
 main() {
     cmd_line_args=""
-    if [ "$parallel" = "true" ]
+    if [ -n "$parallel" ]
     then
-        cmd_line_args="--parallel=true"
+        cmd_line_args="--parallel"
     fi
     echo "cmd_line_args= $cmd_line_args"
 

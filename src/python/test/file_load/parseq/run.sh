@@ -1,12 +1,12 @@
 main() {
     # sequential download
-    dx-download-all-inputs
+    dx-download-all-inputs --sequential
     input_dir="in"
     mkdir tmp
     mv $input_dir tmp
 
     # parallel download
-    dx-download-all-inputs --parallel=true
+    dx-download-all-inputs --parallel
 
     # compare and check that the two download methods are the same
     DIFF=$(diff -r $input_dir tmp/$input_dir)
@@ -29,12 +29,12 @@ main() {
     done
 
     # sequential upload
-    dx-upload-all-outputs 
+    dx-upload-all-outputs --sequential
     compare_upload_to_outdir
     remove_uploaded_files
 
     # parallel upload
-    dx-upload-all-outputs --clearJSON=true --parallel=true
+    dx-upload-all-outputs --clearJSON=true --parallel
     compare_upload_to_outdir
 }
 
