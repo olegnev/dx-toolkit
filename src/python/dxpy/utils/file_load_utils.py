@@ -137,7 +137,8 @@ def rm_output_json_file():
     except OSError as e:
         if e.errno == errno.ENOENT:
             pass
-        raise e
+        else:
+            raise
 
 def ensure_dir(path):
     """
@@ -172,9 +173,9 @@ def make_unix_filename(fname):
     return fname.replace('/', '%2F')
 
 ## filter from a dictionary a list of matching keys
-def filter_dict(dict, excl_keys):
+def filter_dict(dict_, excl_keys):
     sub_dict = {}
-    for k, v in dict.iteritems():
+    for k, v in dict_.iteritems():
         if k not in excl_keys:
             sub_dict[k] = v
     return sub_dict
