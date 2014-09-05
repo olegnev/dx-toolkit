@@ -217,6 +217,7 @@ def get_job_input_filenames():
             if subdir is not None:
                 trg_dir = os.path.join(trg_dir, subdir)
             files[iname].append({'trg_fname': os.path.join(trg_dir, filename),
+                                 'handler': handler,
                                  'src_file_id': handler.id})
             dirs.append(trg_dir)
 
