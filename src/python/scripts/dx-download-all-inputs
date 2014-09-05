@@ -127,7 +127,7 @@ def download_one_file(file_rec):
 # Download the files sequentially
 #   to_download: list of tuples describing files to download
 def sequential_file_download(to_download):
-    for file_rec in inputs:
+    for file_rec in to_download:
         download_one_file(file_rec)
 
 # Download files in parallel
