@@ -154,6 +154,8 @@ class TestDXAppWizardAndRunAppLocally(DXTestCase):
     def test_dx_run_app_locally_interactively(self):
         appdir = create_app_dir()
         local_run = pexpect.spawn("dx-run-app-locally {} -iin1=8".format(appdir))
+        local_run.expect("Confirm")
+        local_run.sendline()
         local_run.expect("App finished successfully")
         local_run.expect("Final output: out1 = 140")
         local_run.close()
@@ -204,9 +206,10 @@ class TestDXAppWizardAndRunAppLocally(DXTestCase):
             "version": "0.0.1",
             "categories": [],
             "inputSpec": [
-                {"name": "required_file",
-                 "class": "file",
-                 "optional": False
+                {
+                    "name": "required_file",
+                    "class": "file",
+                    "optional": False
                 },
                 {
                     "name": "optional_file",
@@ -384,21 +387,20 @@ class TestDXBashHelpers(DXTestCase):
         dxpy.upload_string("ABCD", name="B.txt")
 
         # these should succeed
-        self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt',
-                                           '-iref=A.txt', '-iref=B.txt',
-                                           "-ivalue=5", '-iages=1'])
-        self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt',
-                                           '-iref=A.txt', '-iref=B.txt',
-                                           "-ivalue=5", '-iages=1'])
+        self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt',
+                                            '-iref=A.txt', '-iref=B.txt',
+                                            "-ivalue=5", '-iages=1'])
+        self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt',
+                                            '-iref=A.txt', '-iref=B.txt',
+                                            "-ivalue=5", '-iages=1'])
         self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt',
                                             '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
                                             '-iages=1', '-iages=11', '-iages=33'])
 
         # check the except flags
         self.run_test_app_locally('basic_except', ['-iseq1=A.txt', '-iseq2=B.txt',
-                                            '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
-                                            '-iages=1', '-iages=11', '-iages=33'])
-        print("Done")
+                                                   '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
+                                                   '-iages=1', '-iages=11', '-iages=33'])
 
     def test_quick(self):
         dxpy.upload_string("1234", name="A.txt")
@@ -413,6 +415,11 @@ class TestDXBashHelpers(DXTestCase):
         dxpy.upload_string("ABCD", name="B.txt")
         self.run_test_app_locally('with-subjobs', ["-ifiles=A.txt", "-ifiles=B.txt"])
 
+    def test_parseq(self):
+        ''' Tests the parallel/sequential variations '''
+        dxpy.upload_string("1234", name="A.txt")
+        dxpy.upload_string("ABCD", name="B.txt")
+        self.run_test_app_locally('parseq', ["-iseq1=A.txt", "-iseq2=B.txt", "-iref=A.txt", "-iref=B.txt"])
 
 if __name__ == '__main__':
     unittest.main()

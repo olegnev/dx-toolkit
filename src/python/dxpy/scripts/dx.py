@@ -26,7 +26,8 @@ from ..cli import try_call, prompt_for_yn, INTERACTIVE_CLI
 from ..cli import workflow as workflow_cli
 from ..exceptions import err_exit, DXError, DXCLIError, DXAPIError, network_exceptions, default_expected_exceptions
 from ..packages import requests
-from ..compat import USING_PYTHON2, basestring, str, input, wrap_stdio_in_codecs, decode_command_line_args
+from ..compat import (USING_PYTHON2, basestring, str, input, wrap_stdio_in_codecs, decode_command_line_args,
+                      unwrap_stream)
 from ..utils import warn
 from ..utils.env import sys_encoding, set_env_var, get_env_var, get_user_conf_dir
 
@@ -301,7 +302,8 @@ def login(args):
                     else:
                         username = input('Username: ')
                 write_env_var('DX_USERNAME', username)
-                password = getpass.getpass()
+                with unwrap_stream('stdin'):
+                    password = getpass.getpass()
 
             otp = input('Verification code: ') if get_otp else None
             return dict(username=username, password=password, otp=otp)
@@ -2633,11 +2635,7 @@ def run_one(args, executable, dest_proj, dest_path, preset_inputs=None, input_na
     # Ask for confirmation if a tty and if input was not given as a
     # single JSON.
     if args.confirm and INTERACTIVE_CLI:
-        try:
-            value = input('Confirm running the executable with this input [Y/n]: ')
-        except KeyboardInterrupt:
-            value = 'n'
-        if value != '' and not value.lower().startswith('y'):
+        if not prompt_for_yn('Confirm running the executable with this input', default=True):
             parser.exit(0)
 
     if not args.brief:
@@ -3366,6 +3364,13 @@ class DXArgumentParser(argparse.ArgumentParser):
         if action.choices is not None and value not in action.choices:
             choices = fill("(choose from {})".format(", ".join(action.choices)))
             msg = "invalid choice: {choice}\n{choices}".format(choice=value, choices=choices)
+
+            if len(args_list) == 1:
+                from dxpy.utils import spelling_corrector
+                suggestion = spelling_corrector.correct(value, action.choices)
+                if suggestion in action.choices:
+                    msg += "\n\nDid you mean: " + BOLD("dx " + suggestion)
+
             err = argparse.ArgumentError(action, msg)
             if USING_PYTHON2:
                 err.message = err.message.encode(sys_encoding)

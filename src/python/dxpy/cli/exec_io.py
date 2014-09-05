@@ -22,7 +22,7 @@ from __future__ import (print_function, unicode_literals)
 
 # TODO: refactor all dx run helper functions here
 
-import os, sys, json, collections, pipes, shlex
+import os, sys, json, collections, pipes
 
 import dxpy
 from . import INTERACTIVE_CLI
@@ -32,7 +32,7 @@ from ..utils.describe import (get_find_executions_string, get_ls_l_desc, parse_t
 from ..utils.resolver import (get_first_pos_of_char, is_hashid, is_job_id, is_localjob_id, paginate_and_pick, pick,
                               resolve_existing_path, split_unescaped)
 from ..utils import OrderedDefaultdict
-from ..compat import input, str
+from ..compat import input, str, shlex
 from ..utils.env import get_env_var
 
 ####################
@@ -632,7 +632,7 @@ class ExecutableInputs(object):
         # recognizing when not all inputs haven't been bound
         if require_all_inputs:
             if INTERACTIVE_CLI:
-                self.prompt_for_missing(getattr(args, 'confirm', None))
+                self.prompt_for_missing(getattr(args, 'confirm', True))
             else:
                 missing_required_inputs = set(self.required_inputs) - set(self.inputs.keys())
                 if missing_required_inputs:

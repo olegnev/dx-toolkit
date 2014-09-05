@@ -34,6 +34,7 @@ TEST_RUN_JOBS = _run_all_tests or 'DXTEST_RUN_JOBS' in os.environ
 TEST_TCSH = _run_all_tests or 'DXTEST_TCSH' in os.environ
 
 TEST_DX_LOGIN = 'DXTEST_LOGIN' in os.environ
+TEST_BENCH = 'DXTEST_BENCH' in os.environ   ## Used to exclude benchmarks from normal runs
 
 def _transform_words_to_regexp(s):
     return r"\s+".join(re.escape(word) for word in s.split())
@@ -98,7 +99,7 @@ a DXProject handler for the project.
         if reclaim_permissions:
             dxpy.DXHTTPRequest('/' + temp_project.get_id() + '/join', {'level': 'ADMINISTER'})
         if cleanup:
-            temp_project.destroy()
+            dxpy.api.project_destroy(temp_project.get_id(), {"terminateJobs": True})
 
 
 class DXTestCase(unittest.TestCase):
