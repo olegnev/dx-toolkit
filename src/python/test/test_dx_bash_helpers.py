@@ -246,29 +246,29 @@ class TestDXBashHelpersBenchmark(DXTestCase):
 
             # Add several files to the output
             applet_args = []
-            for i in range(0, num_files):
-                applet_args.append('-iref=A.txt')
+            applet_args.extend(['-iref=A.txt'] * num_files)
             cmd_args = ['dx', 'run', '--yes', '--watch', '--instance-type=mem1_ssd1_x2', applet_id]
             cmd_args.extend(applet_args)
             cmd_args.extend(flag_list)
             run(cmd_args, env=env)
 
-    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    @unittest.skipUnless(testutil.TEST_BENCH, 'skipping tests that run benchmarks')
     def test_seq(self):
         self.run_applet_with_flags(["-iparallel=false"], 40, 1024 * 1024)
 
-    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    @unittest.skipUnless(testutil.TEST_BENCH, 'skipping tests that run benchmarks')
     def test_par(self):
         self.run_applet_with_flags(["-iparallel=true"], 40, 1024 * 1024)
 
-    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    @unittest.skipUnless(testutil.TEST_BENCH, 'skipping tests that run benchmarks')
     def test_seq_100m(self):
         self.run_applet_with_flags(["-iparallel=false"], 40, 100 * 1024 * 1024)
 
+    @unittest.skipUnless(testutil.TEST_BENCH, 'skipping tests that run benchmarks')
     def test_par_100m(self):
         self.run_applet_with_flags(["-iparallel=true"], 40, 100 * 1024 * 1024)
 
-    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+    @unittest.skipUnless(testutil.TEST_BENCH, 'skipping tests that run benchmarks')
     def test_par_1g(self):
         self.run_applet_with_flags(["-iparallel=true"], 10, 1024 * 1024 * 1024)
 
