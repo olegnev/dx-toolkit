@@ -193,7 +193,7 @@ def get_job_input_filenames():
     job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
         job_input = json.load(fh)
-        files = collections.defaultdict(list)  # dictionary, with empty as default elements
+        files = collections.defaultdict(list)  # dictionary, with empty lists as default elements
         dirs = []  # directories to create under <idir>
 
         # Local function for adding a file to the list of files to be created
