@@ -175,11 +175,7 @@ def make_unix_filename(fname):
 
 ## filter from a dictionary a list of matching keys
 def filter_dict(dict_, excl_keys):
-    sub_dict = {}
-    for k, v in dict_.iteritems():
-        if k not in excl_keys:
-            sub_dict[k] = v
-    return sub_dict
+    return {k: v for k, v in dict_.iteritems() if k not in excl_keys}
 
 def get_job_input_filenames():
     """Extract list of files, returns a set of directories to create, and
