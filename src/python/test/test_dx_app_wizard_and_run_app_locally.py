@@ -206,9 +206,10 @@ class TestDXAppWizardAndRunAppLocally(DXTestCase):
             "version": "0.0.1",
             "categories": [],
             "inputSpec": [
-                {"name": "required_file",
-                 "class": "file",
-                 "optional": False
+                {
+                    "name": "required_file",
+                    "class": "file",
+                    "optional": False
                 },
                 {
                     "name": "optional_file",
@@ -386,12 +387,12 @@ class TestDXBashHelpers(DXTestCase):
         dxpy.upload_string("ABCD", name="B.txt")
 
         # these should succeed
-        self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt',
-                                           '-iref=A.txt', '-iref=B.txt',
-                                           "-ivalue=5", '-iages=1'])
-        self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt',
-                                           '-iref=A.txt', '-iref=B.txt',
-                                           "-ivalue=5", '-iages=1'])
+        self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt',
+                                            '-iref=A.txt', '-iref=B.txt',
+                                            "-ivalue=5", '-iages=1'])
+        self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt',
+                                            '-iref=A.txt', '-iref=B.txt',
+                                            "-ivalue=5", '-iages=1'])
         self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt',
                                             '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
                                             '-iages=1', '-iages=11', '-iages=33'])
@@ -400,13 +401,6 @@ class TestDXBashHelpers(DXTestCase):
         self.run_test_app_locally('basic_except', ['-iseq1=A.txt', '-iseq2=B.txt',
                                                    '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
                                                    '-iages=1', '-iages=11', '-iages=33'])
-
-        # test the parallel download feature
-        self.run_test_app_locally('basic_except', ['-iseq1=A.txt', '-iseq2=B.txt',
-                                                   '-iref=A.txt', '-iref=B.txt', '-iref=A.txt', '-iref=B.txt',
-                                                   '-iref=A.txt', '-iref=B.txt', '-iref=A.txt', '-iref=B.txt',
-                                                   "-ivalue=5", '-iages=1'])
-        print("Done")
 
     def test_sub_jobs(self):
         '''  Tests a bash script that generates sub-jobs '''
