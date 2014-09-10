@@ -402,13 +402,6 @@ class TestDXBashHelpers(DXTestCase):
                                                    '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
                                                    '-iages=1', '-iages=11', '-iages=33'])
 
-    def test_quick(self):
-        dxpy.upload_string("1234", name="A.txt")
-        self.run_test_app_locally('basic',['-iseq1=A.txt', '-iseq2=A.txt',
-                                           '-iref=A.txt',
-                                           "-ivalue=5", '-iages=1'])
-        print("Done quick test")
-
     def test_sub_jobs(self):
         '''  Tests a bash script that generates sub-jobs '''
         dxpy.upload_string("1234", name="A.txt")

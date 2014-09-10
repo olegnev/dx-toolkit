@@ -128,23 +128,6 @@ class TestDXBashHelpers(DXTestCase):
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
 
-    def test_quick(self):
-        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
-            env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
-
-            # Upload some files for use by the applet
-            dxpy.upload_string("1234\n", project=p.get_id(), name="A.txt")
-
-            # Build the applet, patching in the bash helpers from the
-            # local checkout
-            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'basic'), p.get_id())
-
-            # Run the applet
-            applet_args = ['-iseq1=A.txt', '-iseq2=A.txt', '-iref=A.txt', "-ivalue=5", "-iages=4"]
-            cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
-            cmd_args.extend(applet_args)
-            run(cmd_args, env=env)
-
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_sub_jobs(self):
         '''  Tests a bash script that generates sub-jobs '''
@@ -182,12 +165,6 @@ class TestDXBashHelpers(DXTestCase):
 
             def strip_white_space(_str):
                 return ''.join(_str.split())
-
-            def silent_file_remove(filename):
-                try:
-                    os.remove(filename)
-                except OSError:
-                    pass
 
             def silent_file_remove(filename):
                 try:
