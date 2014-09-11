@@ -100,6 +100,15 @@ def get_input_dir():
     idir = os.path.join(home_dir, 'in')
     return idir
 
+def get_relative_input_dir():
+    '''
+    :rtype : string
+    :returns : relative path to input directory
+
+    Returns the input directory, where all inputs are downloaded, relative to HOME
+    '''
+    return "$HOME/in"
+
 def get_output_dir():
     '''
     :rtype : string
@@ -177,7 +186,7 @@ def make_unix_filename(fname):
 def filter_dict(dict_, excl_keys):
     return {k: v for k, v in dict_.iteritems() if k not in excl_keys}
 
-def get_job_input_filenames():
+def get_job_input_filenames(job_input_file):
     """Extract list of files, returns a set of directories to create, and
     a set of files, with sources and destinations. The paths created are
     relative to the input directory.
@@ -186,7 +195,6 @@ def get_job_input_filenames():
     separate subdirectory for each. This avoids clobbering files when
     duplicate filenames appear in an array.
     """
-    job_input_file = get_input_json_file()
     with open(job_input_file) as fh:
         job_input = json.load(fh)
         files = collections.defaultdict(list)  # dictionary, with empty lists as default elements
@@ -242,7 +250,7 @@ def get_job_input_filenames():
                 add_file(input_name, None, value)
         return dirs, files
 
-def analyze_bash_vars():
+def analyze_bash_vars(job_input_file):
     '''
     This function examines the input file, and calculates variables to
     instantiate in the shell environment. It is called right before starting the
@@ -265,12 +273,12 @@ def analyze_bash_vars():
     export genes_prefix=(A B)
     export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
 '''
-    idir = get_input_dir()
-    dirs,file_entries = get_job_input_filenames()
+    dirs,file_entries = get_job_input_filenames(job_input_file)
     key_descs = {}
+    rel_home_dir = get_relative_input_dir()
     for key, entries in file_entries.iteritems():
         if key not in key_descs:
-            key_descs[key] = {'id': [],
+            key_descs[key] = {'handler': [],
                               'filename': [],
                               'prefix': [],
                               'path': []}
@@ -280,30 +288,39 @@ def analyze_bash_vars():
             prefix = os.path.splitext(basename)[0]
 
             k_desc = key_descs[key]
-            k_desc['id'].append(dxpy.dxlink(entry['handler']))
+            k_desc['handler'].append(entry['handler'])
             k_desc['filename'].append(basename)
             k_desc['prefix'].append(prefix)
-            k_desc['path'].append(os.path.join(idir, filename))
+            k_desc['path'].append(os.path.join(rel_home_dir, filename))
     return key_descs
 
+#
 # Note: pipes.quote() to be replaced with shlex.quote() in Python 3 (see http://docs.python.org/2/library/pipes.html#pipes.quote)
 # TODO: Detect and warn about collisions with essential environment variables
-def print_bash_vars():
-    key_descs = analyze_bash_vars()
+def gen_lines_for_bash_vars(job_input_file):
+    key_descs = analyze_bash_vars(job_input_file)
 
-    def string_of(v):
-        str=""
-        if len(v) == 1:
-            str = json.dumps(v[0])
+    def string_of_elem(elem):
+        if isinstance(elem, basestring):
+            return '"{}"'.format(elem )
+        elif isinstance(elem, dxpy.DXFile):
+            ln = dxpy.dxlink(elem, project_id=elem.get_proj_id())
+            return pipes.quote(json.dumps(ln))
         else:
-            l = map(json.dumps, v)
-            str = '( ' + " ".join(l) + ' )'
-        return pipes.quote(str)
+            return pipes.quote(json.dumps(elem))
 
+    def string_of_list(val_list):
+        if len(val_list) > 1:
+            str = " ".join([string_of_elem(vitem) for vitem in val_list])
+            return "( {} )".format(str)
+        else:
+            return string_of_elem(val_list[0])
+
+    lines = []
     for key,k_desc in key_descs.iteritems():
-        print "export {k}={vlist}".format(k=key, vlist=string_of(k_desc['id']))
-        print "export {k}_filename={vlist}".format(k=key, vlist=string_of(k_desc['filename']))
-        print "export {k}_prefix={vlist}".format(k=key, vlist=string_of(k_desc['prefix']))
-        print "export {k}_path={vlist}".format(k=key, vlist=string_of(k_desc['path']))
-
+        lines.append("export {}={}".format(key, string_of_list(k_desc['handler'])))
+        lines.append("export {}_filename={}".format(key, string_of_list(k_desc['filename'])))
+        lines.append("export {}_prefix={}".format(key, string_of_list(k_desc['prefix'])))
+        lines.append("export {}_path={}".format(key, string_of_list(k_desc['path'])))
+    return lines
 

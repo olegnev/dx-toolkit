@@ -8,9 +8,9 @@
   "inputSpec": [
     {"name": "seq1", "class": "file"},
     {"name": "seq2", "class": "file"},
-    {"name": "genes",  "class": "array:file"},
+    {"name": "genes",  "class": "array:file"}
   ],
   "outputSpec": [
-    {"name": "foo",    "class": "array:file", "optional" : true},
+    {"name": "foo",    "class": "array:file", "optional" : true}
   ]
 }

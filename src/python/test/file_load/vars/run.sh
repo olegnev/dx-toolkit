@@ -1,18 +1,24 @@
 main() {
+#    dx-print-bash-vars
+
     dx-download-all-inputs
+    
+    check_var_defined "$seq1"
+    check_var_defined "$seq2"
+    check_var_defined "$genes"
 
-    check_var_defined "dx_seq1"
-    check_var_defined "dx_seq2"
-    check_var_defined "dx_genes"
-
+#    mkdir -p out/foo
     dx-upload-all-outputs
 }
 
 # Check if an environment variable is defined
-function check_var_defined {
-    varname=$1
-    if [ -n "$varname" ]
-        echo "Error: expecting environment variable $varname to be defined"
+check_var_defined() {
+    if [[ -z $1 ]]; 
+    then
+        echo "Error: expecting environment variable $1 to be defined"
+        dx-jobutil-report-error "Error: expecting environment variable $1 to be defined" "AppError"
         exit 1
     fi
 }
+
+

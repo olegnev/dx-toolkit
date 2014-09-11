@@ -375,6 +375,12 @@ class TestDXBashHelpers(DXTestCase):
         args.extend(arg_list)
         check_output(args)
 
+    def test_quick(self):
+        # Make a couple files for testing
+        print("quick test for the upload/download helpers")
+        dxpy.upload_string("1234", name="A.txt")
+        self.run_test_app_locally('vars', ['-iseq1=A.txt', '-iseq2=A.txt', '-igenes=A.txt', '-igenes=A.txt'])
+
     def test_basic(self):
         # Make a couple files for testing
         print("testing upload/download helpers")
