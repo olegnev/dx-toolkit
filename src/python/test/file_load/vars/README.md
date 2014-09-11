@@ -1,2 +1,1 @@
-This is a testing app, for the dx-upload/download-all python scripts. 
-
+This is a testing app, for the dx-upload/download-all python scripts.
