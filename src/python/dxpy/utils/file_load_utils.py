@@ -274,19 +274,15 @@ def analyze_bash_vars(job_input_file):
     export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
 '''
     dirs,file_entries = get_job_input_filenames(job_input_file)
-    key_descs = {}
+    def factory():
+        return {'handler': [], 'filename': [],  'prefix': [], 'path': []}
+    key_descs = collections.defaultdict(factory)
     rel_home_dir = get_relative_input_dir()
     for key, entries in file_entries.iteritems():
-        if key not in key_descs:
-            key_descs[key] = {'handler': [],
-                              'filename': [],
-                              'prefix': [],
-                              'path': []}
         for entry in entries:
             filename = entry['trg_fname']
             basename = os.path.basename(filename)
             prefix = os.path.splitext(basename)[0]
-
             k_desc = key_descs[key]
             k_desc['handler'].append(entry['handler'])
             k_desc['filename'].append(basename)
