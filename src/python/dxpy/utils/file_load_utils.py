@@ -195,60 +195,70 @@ def get_job_input_filenames(job_input_file):
     separate subdirectory for each. This avoids clobbering files when
     duplicate filenames appear in an array.
     """
-    with open(job_input_file) as fh:
-        job_input = json.load(fh)
-        files = collections.defaultdict(list)  # dictionary, with empty lists as default elements
-        dirs = []  # directories to create under <idir>
+    def get_input_hash():
+        with open(job_input_file) as fh:
+            job_input = json.load(fh)
+            return job_input
+    job_input = get_input_hash()
 
-        # Local function for adding a file to the list of files to be created
-        # for example:
-        #    iname == "seq1"
-        #    subdir == "015"
-        #    value == { "$dnanexus_link": {
-        #       "project": "project-BKJfY1j0b06Z4y8PX8bQ094f",
-        #       "id": "file-BKQGkgQ0b06xG5560GGQ001B"
-        #    }
-        # will create a record describing that the file should
-        # be downloaded into seq1/015/<filename>
-        def add_file(iname, subdir, value):
-            if not dxpy.is_dxlink(value):
-                return
-            handler = dxpy.get_handler(value)
-            if not isinstance(handler, dxpy.DXFile):
-                return
-            filename = make_unix_filename(handler.name)
-            trg_dir = iname
-            if subdir is not None:
-                trg_dir = os.path.join(trg_dir, subdir)
-            files[iname].append({'trg_fname': os.path.join(trg_dir, filename),
-                                 'handler': handler,
-                                 'src_file_id': handler.id})
-            dirs.append(trg_dir)
+    files = collections.defaultdict(list)  # dictionary, with empty lists as default elements
+    dirs = []  # directories to create under <idir>
 
-        # An array of inputs, for a single key. A directory
-        # will be created per array entry. For example, if the input key is
-        # FOO, and the inputs are {A, B, C}.vcf then, the directory structure
-        # will be:
-        #   <idir>/FOO/00/A.vcf
-        #   <idir>/FOO/01/B.vcf
-        #   <idir>/FOO/02/C.vcf
-        def add_file_array(input_name, links):
-            num_files = len(links)
-            if num_files == 0:
-                return
-            num_digits = len(str(num_files - 1))
-            dirs.append(input_name)
-            for i, link in enumerate(links):
-                subdir = str(i).zfill(num_digits)
-                add_file(input_name, subdir, link)
+    # Local function for adding a file to the list of files to be created
+    # for example:
+    #    iname == "seq1"
+    #    subdir == "015"
+    #    value == { "$dnanexus_link": {
+    #       "project": "project-BKJfY1j0b06Z4y8PX8bQ094f",
+    #       "id": "file-BKQGkgQ0b06xG5560GGQ001B"
+    #    }
+    # will create a record describing that the file should
+    # be downloaded into seq1/015/<filename>
+    def add_file(iname, subdir, value):
+        if not dxpy.is_dxlink(value):
+            return
+        handler = dxpy.get_handler(value)
+        if not isinstance(handler, dxpy.DXFile):
+            return
+        filename = make_unix_filename(handler.name)
+        trg_dir = iname
+        if subdir is not None:
+            trg_dir = os.path.join(trg_dir, subdir)
+        files[iname].append({'trg_fname': os.path.join(trg_dir, filename),
+                             'handler': handler,
+                             'src_file_id': handler.id})
+        dirs.append(trg_dir)
 
-        for input_name, value in job_input.iteritems():
-            if isinstance(value, list):
-                # This is a file array
-                add_file_array(input_name, value)
-            else:
-                add_file(input_name, None, value)
-        return dirs, files
+    # An array of inputs, for a single key. A directory
+    # will be created per array entry. For example, if the input key is
+    # FOO, and the inputs are {A, B, C}.vcf then, the directory structure
+    # will be:
+    #   <idir>/FOO/00/A.vcf
+    #   <idir>/FOO/01/B.vcf
+    #   <idir>/FOO/02/C.vcf
+    def add_file_array(input_name, links):
+        num_files = len(links)
+        if num_files == 0:
+            return
+        num_digits = len(str(num_files - 1))
+        dirs.append(input_name)
+        for i, link in enumerate(links):
+            subdir = str(i).zfill(num_digits)
+            add_file(input_name, subdir, link)
+
+    for input_name, value in job_input.iteritems():
+        if isinstance(value, list):
+            # This is a file array
+            add_file_array(input_name, value)
+        else:
+            add_file(input_name, None, value)
+
+    ## create a dictionary of the all non-file elements
+    rest_hash = {}
+    for input_name, value in job_input.iteritems():
+        if input_name not in files:
+            rest_hash[input_name] = value
+    return dirs, files, rest_hash
 
 def analyze_bash_vars(job_input_file):
     '''
@@ -273,28 +283,28 @@ def analyze_bash_vars(job_input_file):
     export genes_prefix=(A B)
     export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
 '''
-    dirs,file_entries = get_job_input_filenames(job_input_file)
+    dirs,file_entries,rest_hash = get_job_input_filenames(job_input_file)
     def factory():
         return {'handler': [], 'filename': [],  'prefix': [], 'path': []}
-    key_descs = collections.defaultdict(factory)
+    file_key_descs = collections.defaultdict(factory)
     rel_home_dir = get_relative_input_dir()
     for key, entries in file_entries.iteritems():
         for entry in entries:
             filename = entry['trg_fname']
             basename = os.path.basename(filename)
             prefix = os.path.splitext(basename)[0]
-            k_desc = key_descs[key]
+            k_desc = file_key_descs[key]
             k_desc['handler'].append(entry['handler'])
             k_desc['filename'].append(basename)
             k_desc['prefix'].append(prefix)
             k_desc['path'].append(os.path.join(rel_home_dir, filename))
-    return key_descs
+    return file_key_descs, rest_hash
 
 #
 # Note: pipes.quote() to be replaced with shlex.quote() in Python 3 (see http://docs.python.org/2/library/pipes.html#pipes.quote)
 # TODO: Detect and warn about collisions with essential environment variables
 def gen_lines_for_bash_vars(job_input_file):
-    key_descs = analyze_bash_vars(job_input_file)
+    file_key_descs,rest_hash = analyze_bash_vars(job_input_file)
 
     def string_of_elem(elem):
         if isinstance(elem, basestring):
@@ -313,10 +323,16 @@ def gen_lines_for_bash_vars(job_input_file):
             return string_of_elem(val_list[0])
 
     lines = []
-    for key,k_desc in key_descs.iteritems():
-        lines.append("export {}={}".format(key, string_of_list(k_desc['handler'])))
-        lines.append("export {}_filename={}".format(key, string_of_list(k_desc['filename'])))
-        lines.append("export {}_prefix={}".format(key, string_of_list(k_desc['prefix'])))
-        lines.append("export {}_path={}".format(key, string_of_list(k_desc['path'])))
+    for file_key,desc in file_key_descs.iteritems():
+        lines.append("export {}={}".format(file_key, string_of_list(desc['handler'])))
+        lines.append("export {}_filename={}".format(file_key, string_of_list(desc['filename'])))
+        lines.append("export {}_prefix={}".format(file_key, string_of_list(desc['prefix'])))
+        lines.append("export {}_path={}".format(file_key, string_of_list(desc['path'])))
+    for key,desc in rest_hash.iteritems():
+        lines.append("export {}={}".format(key, string_of_elem(desc)))
     return lines
+
+def original_hash_for_bash_vars(input_hash):
+    return "\n".join(
+        ["export {k}=( {vlist} )".format(k=k, vlist=" ".join([pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v])) if isinstance(v, list) else "export {k}={v}".format(k=k, v=pipes.quote(v if isinstance(v, basestring) else json.dumps(v))) for k, v in input_hash.items()])
 

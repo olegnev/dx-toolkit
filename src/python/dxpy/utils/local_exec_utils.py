@@ -329,6 +329,7 @@ def run_one_entry_point(job_id, function, input_hash, run_spec, depends_on, name
         with open(env_path, 'w') as fd:
             # The old code, used to generate env vars on the remote worker
             #fd.write("\n".join(["export {k}=( {vlist} )".format(k=k, vlist=" ".join([pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v])) if isinstance(v, list) else "export {k}={v}".format(k=k, v=pipes.quote(v if isinstance(v, basestring) else json.dumps(v))) for k, v in input_hash.items()]))
+            #fd.write("\n\n")
             job_input_file = os.path.join(job_homedir,'job_input.json')
             lines = file_load_utils.gen_lines_for_bash_vars(job_input_file)
             for var_line in lines:
