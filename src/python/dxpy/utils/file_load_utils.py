@@ -87,6 +87,7 @@ import math
 import sys
 import collections
 import dxpy
+from dxpy.compat import environ
 from ..exceptions import DXError
 
 def get_input_dir():
@@ -279,8 +280,8 @@ def analyze_bash_vars(job_input_file):
                    B.txt
 
     export genes=("$dnanexus_link {id: file-xxxx}" "$dnanexus_link {id: file-yyyy}")
-    export genes_filename=(A.txt B.txt)
-    export genes_prefix=(A B)
+    export genes_filename=("A.txt" "B.txt")
+    export genes_prefix=("A" "B")
     export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
 '''
     dirs,file_entries,rest_hash = get_job_input_filenames(job_input_file)
@@ -304,6 +305,12 @@ def analyze_bash_vars(job_input_file):
 # Note: pipes.quote() to be replaced with shlex.quote() in Python 3 (see http://docs.python.org/2/library/pipes.html#pipes.quote)
 # TODO: Detect and warn about collisions with essential environment variables
 def gen_lines_for_bash_vars(job_input_file):
+    """ calculates a line for each shell variable to instantiate.
+
+    :param job_input_file: path to a JSON file describing the job inputs
+    :return: list of lines
+    :rtype: list of strings
+    """
     file_key_descs,rest_hash = analyze_bash_vars(job_input_file)
 
     def string_of_elem(elem):
@@ -322,17 +329,25 @@ def gen_lines_for_bash_vars(job_input_file):
         else:
             return string_of_elem(val_list[0])
 
+
+    all_keys = set()
     lines = []
+    # In the absence of a name collision, create a line describing a bash variable.
+    def gen_text_line_and_check_name_collision(key, val):
+        if key not in environ and key not in all_keys:
+            all_keys.add(key)
+            lines.append("export {}={}".format(key, val))
+        else:
+            lines.append("# Creating environment variable {} would cause a name collision".format(key))
+
     for file_key,desc in file_key_descs.iteritems():
-        lines.append("export {}={}".format(file_key, string_of_list(desc['handler'])))
-        lines.append("export {}_filename={}".format(file_key, string_of_list(desc['filename'])))
-        lines.append("export {}_prefix={}".format(file_key, string_of_list(desc['prefix'])))
-        lines.append("export {}_path={}".format(file_key, string_of_list(desc['path'])))
+        gen_text_line_and_check_name_collision(file_key, string_of_list(desc['handler']))
+        gen_text_line_and_check_name_collision(file_key + "_filename", string_of_list(desc['filename']))
+        gen_text_line_and_check_name_collision(file_key + "_prefix", string_of_list(desc['prefix']))
+        gen_text_line_and_check_name_collision(file_key + "_path", string_of_list(desc['path']))
     for key,desc in rest_hash.iteritems():
-        lines.append("export {}={}".format(key, string_of_elem(desc)))
+        gen_text_line_and_check_name_collision(key, string_of_list(desc))
+
     return lines
 
-def original_hash_for_bash_vars(input_hash):
-    return "\n".join(
-        ["export {k}=( {vlist} )".format(k=k, vlist=" ".join([pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v])) if isinstance(v, list) else "export {k}={v}".format(k=k, v=pipes.quote(v if isinstance(v, basestring) else json.dumps(v))) for k, v in input_hash.items()])
 
