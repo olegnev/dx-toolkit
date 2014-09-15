@@ -1974,6 +1974,12 @@ def upload(args, **kwargs):
     elif args.path is None:
         args.path = args.output
 
+    if len(args.filename) > 1 and not args.path.endswith("/"):
+        # When called as "dx upload x --dest /y", we upload to "/y"; with --dest "/y/", we upload to "/y/x".
+        # Called as "dx upload x y --dest /z", z is implicitly a folder, so append a slash to avoid incorrect path
+        # resolution.
+        args.path += "/"
+
     paths = copy.copy(args.filename)
     for path in paths:
         args.filename = path
@@ -2983,7 +2989,7 @@ def shell(orig_args):
                 args = [word.decode('utf-8') for word in shlex.split(line.encode('utf-8'))]
                 parsed_args = parser.parse_args(args)
                 set_cli_colors(parsed_args)
-                args.func(parsed_args)
+                parsed_args.func(parsed_args)
         exit(0)
 
     if state['interactive']:
@@ -3214,7 +3220,7 @@ def ssh(args, ssh_config_verified=False):
 
     known_hosts_file = os.path.expanduser('~/.dnanexus_config/ssh_known_hosts')
     with open(known_hosts_file, 'a') as fh:
-        fh.write("{job_id}.dnanexus.io {key}\n".format(job_id=args.job_id, key=host_key.rstrip()))
+        fh.write("{job_id}.dnanex.us {key}\n".format(job_id=args.job_id, key=host_key.rstrip()))
 
     import socket
     connected = False
@@ -3238,7 +3244,7 @@ def ssh(args, ssh_config_verified=False):
 
     print("Connecting to", host)
     ssh_args = ['ssh', '-i', os.path.expanduser('~/.dnanexus_config/ssh_id'),
-                '-o', 'HostKeyAlias={}.dnanexus.io'.format(args.job_id),
+                '-o', 'HostKeyAlias={}.dnanex.us'.format(args.job_id),
                 '-o', 'UserKnownHostsFile={}'.format(known_hosts_file),
                 '-l', 'dnanexus', host]
     ssh_args += args.ssh_args
