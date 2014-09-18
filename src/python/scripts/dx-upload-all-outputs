@@ -161,7 +161,6 @@ def traverse_output_subdir(odir, subdir):
             continue
         else:
             files.append(fname)
-    #print("traverse{} files={} deep_dirs={}".format(subdir, files, deep_dirs))
     return files, deep_dirs
 
 def deep_list(base_path, rel_path):
@@ -169,7 +168,6 @@ def deep_list(base_path, rel_path):
     Traverse a local directory, and make a list of all the files and
     subdirectories.
     '''
-    #print("deep_list({})".format(os.path.join(base_path, rel_path)))
     files = []
     dirs = []
     for fname in os.listdir(os.path.join(base_path, rel_path)):
@@ -370,32 +368,35 @@ for key in subdir_recs:
 # Go through the deep subdirectories, make a listing of files to upload,
 # and directories to create in the workspace.
 dirs_to_create = []
-for key, subdir_rec in subdir_recs.iteritems():
-    for ddir in subdir_rec['deep_dirs']:
-        dfiles,dfolders = deep_list(subdir_rec['path'], ddir)
+for key in subdir_recs:
+    subdir_desc = subdir_recs[key]
+    for ddir in subdir_desc['deep_dirs']:
+        dfiles,dfolders = deep_list(subdir_desc['path'], ddir)
         dirs_to_create.append(ddir)
         dirs_to_create.extend(dfolders)
         for dfile in dfiles:
             rel_path = os.path.dirname(dfile)
             local_path = os.path.join(subdir_desc['path'], rel_path)
-            to_upload.append(create_entry(None,
+            to_upload.append(create_entry(None,  # we are not going to record the file handler
                                           local_path,
                                           rel_path,
                                           os.path.basename(dfile)))
 
-# create the directories in the workspace, this allows uploading all
+# Create the directories in the workspace, this allows uploading all
 # the files in parallel.
+#
+# Notes:
+# 1) We are using the default workspace
+# 2) By creating the parents of all folders, we can
+#    create the folders in any order. In other words, we can ignore
+#    the nesting of some folders.
+# 3) We do not need to catch exceptions, because a side
+#    effect of setting parents=True is that no exceptions
+#    are thrown for creating an already existing directory. Any
+#    other error should stop this script.
 for folder in dirs_to_create:
-    print("creating project folder {}".format(folder))
     project=dxpy.WORKSPACE_ID
-    try:
-        dxpy.api.project_new_folder(project, {"folder": "/" + folder, "parents": True})
-    except Exception as details:
-        print("Error while creating " + folder + " in " + project)
-        print("  " + str(details))
-#    except InvalidState:
-        # folder already exists, which is ok.
-#        pass
+    dxpy.api.project_new_folder(project, {"folder": "/" + folder, "parents": True})
 
 # upload concurrently
 if args.parallel:
