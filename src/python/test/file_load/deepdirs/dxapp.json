@@ -1,0 +1,14 @@
+{ "name": "deepdirs",
+  "title": "deepdirs",
+  "summary" : "uploading deep directories in the output",
+  "runSpec": {
+    "file": "run.sh",
+    "interpreter": "bash"
+  },
+  "inputSpec": [
+  ],
+  "outputSpec": [
+    {"name": "genes", "class":  "file"},
+    {"name": "phenotypes", "class":  "file"}
+  ]
+}

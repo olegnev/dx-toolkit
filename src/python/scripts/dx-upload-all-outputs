@@ -146,26 +146,45 @@ def get_output_spec():
 
 
 def traverse_output_subdir(odir, subdir):
-    '''
-    Traverse an output directory, and return all the files in
-    it.
-
-    TODO: Support directories. For example, upload file
-    $HOME/out/outputname/foo/bar/baz.txt as a file into the folder
-    /foo/bar in the job's workspace.
+    '''Traverse an output directory, and return all the files in
+    it. In a separate list, return all the subdirectories.
     '''
     files = []
+    deep_dirs = []
     for fname in os.listdir(subdir):
         path = os.path.join(odir, subdir, fname)
         if os.path.isdir(path):
-            # ignore directories
-            continue
-        if path.startswith('.'):
+            # subdirectories
+            deep_dirs.append(fname)
+        elif path.startswith('.'):
             # ignore hidden files
             continue
-        files.append(fname)
-    return files
+        else:
+            files.append(fname)
+    #print("traverse{} files={} deep_dirs={}".format(subdir, files, deep_dirs))
+    return files, deep_dirs
 
+def deep_list(base_path, rel_path):
+    '''
+    Traverse a local directory, and make a list of all the files and
+    subdirectories.
+    '''
+    #print("deep_list({})".format(os.path.join(base_path, rel_path)))
+    files = []
+    dirs = []
+    for fname in os.listdir(os.path.join(base_path, rel_path)):
+        fname_rel_path = os.path.join(rel_path, fname)
+        if os.path.isdir(os.path.join(base_path, fname_rel_path)):
+            dfiles, ddirs = deep_list(base_path, fname_rel_path)
+            files.extend(dfiles)
+            dirs.append(rel_path)
+            dirs.extend(ddirs)
+        elif fname.startswith('.'):
+            # ignore hidden files
+            continue
+        else:
+            files.append(fname_rel_path)
+    return files, dirs
 
 def analyze_output_dir():
     '''
@@ -192,8 +211,10 @@ def analyze_output_dir():
         path = os.path.join(odir, subdir)
         if not os.path.isdir(path):
             continue
+        files, deep_dirs = traverse_output_subdir(odir, path)
         s_rec = {'path': path,
-                 'files': traverse_output_subdir(odir, path),
+                 'files': files,
+                 'deep_dirs': deep_dirs,
                  'dx_links': []}
         subdir_recs[subdir] = s_rec
     return subdir_recs
@@ -220,7 +241,6 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
             # array of files, there could be any number of files in the subdirectory (including zero)
             pass
 
-
     for key in output_spec:
         '''Check that all the relevant output fields have been generated'''
         class_ = output_spec[key]['class']
@@ -243,19 +263,26 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
 
 # Create an entry encapsulating the context required to upload a file.
 # The idea is to avoid sharing data between parallel threads of execution.
-def create_entry(subdir_desc, fname):
-    return {'subdir_desc': subdir_desc,
-            'fname': fname,
+def create_entry(subdir_desc, local_path, target_path, basename):
+    return {'subdir_desc' : subdir_desc,
+            'local_dir_path': local_path,
+            'target_dir_path': target_path,
+            'fname': basename,
             'dxlink': None}
 
 def upload_one_file(entry):
     '''Upload a file from the output directory. Record a reference to the
     uploaded object in the entry.
     '''
-    path = os.path.join(entry['subdir_desc']['path'], entry['fname'])
-    f_obj = dxpy.upload_local_file(path)
+    local_path = os.path.join(entry['local_dir_path'], entry['fname'])
+    if entry['target_dir_path'] is None:
+        trg_path = "/{}".format(entry['fname'])
+        f_obj = dxpy.upload_local_file(local_path)
+    else:
+        trg_path = "/{}/{}".format(entry['target_dir_path'], entry['fname'])
+        f_obj = dxpy.upload_local_file(local_path, folder= "/" + entry['target_dir_path'])
     entry['dxlink'] = dxpy.dxlink(f_obj)
-    print("uploaded file %s" % path)
+    print("uploaded file {} -> {}".format(local_path, trg_path))
 
 def sequential_file_upload(to_upload):
     '''Sequentially upload everything that is in the output directory.
@@ -320,14 +347,6 @@ def update_output_json(subdir_recs):
         json.dump(output_json, fh, indent=4)
 
 
-## filter from a dictionary a list of matching keys
-def filter_dict(dict, excl_keys):
-    sub_dict = {}
-    for k, v in dict.iteritems():
-        if k not in excl_keys:
-            sub_dict[k] = v
-    return sub_dict
-
 ## entry point
 output_spec = get_output_spec()
 subdir_recs = analyze_output_dir()
@@ -346,7 +365,37 @@ to_upload = []
 for key in subdir_recs:
     subdir_desc = subdir_recs[key]
     for fname in subdir_desc['files']:
-        to_upload.append(create_entry(subdir_desc, fname))
+        to_upload.append(create_entry(subdir_desc, subdir_desc['path'], None, fname))
+
+# Go through the deep subdirectories, make a listing of files to upload,
+# and directories to create in the workspace.
+dirs_to_create = []
+for key, subdir_rec in subdir_recs.iteritems():
+    for ddir in subdir_rec['deep_dirs']:
+        dfiles,dfolders = deep_list(subdir_rec['path'], ddir)
+        dirs_to_create.append(ddir)
+        dirs_to_create.extend(dfolders)
+        for dfile in dfiles:
+            rel_path = os.path.dirname(dfile)
+            local_path = os.path.join(subdir_desc['path'], rel_path)
+            to_upload.append(create_entry(None,
+                                          local_path,
+                                          rel_path,
+                                          os.path.basename(dfile)))
+
+# create the directories in the workspace, this allows uploading all
+# the files in parallel.
+for folder in dirs_to_create:
+    print("creating project folder {}".format(folder))
+    project=dxpy.WORKSPACE_ID
+    try:
+        dxpy.api.project_new_folder(project, {"folder": "/" + folder, "parents": True})
+    except Exception as details:
+        print("Error while creating " + folder + " in " + project)
+        print("  " + str(details))
+#    except InvalidState:
+        # folder already exists, which is ok.
+#        pass
 
 # upload concurrently
 if args.parallel:
@@ -357,7 +406,8 @@ else:
 # Uploads are complete, we can collect all results. This avoids
 # data races in the parallel upload case.
 for entry in to_upload:
-    entry['subdir_desc']['dx_links'].append(entry['dxlink'])
+    if entry['subdir_desc'] is not None:
+        entry['subdir_desc']['dx_links'].append(entry['dxlink'])
 
 if args.clearJSON:
     file_load_utils.rm_output_json_file()
