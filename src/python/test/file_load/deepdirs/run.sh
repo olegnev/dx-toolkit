@@ -1,5 +1,5 @@
 main() {
-    dx-download-all-inputs 
+    dx-download-all-inputs
 
     gene_d="out/genes"
     mkdir -p $gene_d
@@ -10,7 +10,7 @@ main() {
     mkdir -p $gene_d/clue
     echo "ABC" > $gene_d/clue/X_1.txt
     for i in 2 3; do
-        cp $gene_d/clue/X_1.txt $gene_d/clue/X_$i.txt 
+        cp $gene_d/clue/X_1.txt $gene_d/clue/X_$i.txt
     done
     cp -r $gene_d/clue $gene_d/hint
 
@@ -22,7 +22,7 @@ main() {
     mkdir -p $phen_d/clue2
     echo "ACGT" > $phen_d/clue2/Y_1.txt
     for i in 2 3; do
-        cp $phen_d/clue2/Y_1.txt $phen_d/clue2/Y_$i.txt 
+        cp $phen_d/clue2/Y_1.txt $phen_d/clue2/Y_$i.txt
     done
     cp -r $phen_d/clue2 $phen_d/hint2
 
