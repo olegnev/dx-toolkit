@@ -29,8 +29,8 @@ main() {
     dx-upload-all-outputs
 
     #  Check that directory structure was copied
-    #  correctly to the project space 
-    dx download --overwrite --recursive "/" 
+    #  correctly to the project space
+    dx download --overwrite --recursive "/"
     mkdir tmp
     mkdir tmp/genes
     mv {A.txt,B.txt,hint,clue} tmp/genes/
@@ -38,7 +38,7 @@ main() {
     mv {C.txt,hint2,clue2} tmp/phenotypes
 
     DIFF=$(diff -r tmp out)
-    if [ $DIFF != "" ] 
+    if [ $DIFF != "" ]
     then
         echo "Upload of subdirectories does not work properly"
         exit 1
