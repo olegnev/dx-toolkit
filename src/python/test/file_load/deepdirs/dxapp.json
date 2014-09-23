@@ -6,9 +6,10 @@
     "interpreter": "bash"
   },
   "inputSpec": [
+    {"name": "seq", "class": "file", "optional": true}
   ],
   "outputSpec": [
-    {"name": "genes", "class":  "file"},
-    {"name": "phenotypes", "class":  "file"}
+    {"name": "genes", "class": "array:file"},
+    {"name": "phenotypes", "class": "array:file"}
   ]
 }

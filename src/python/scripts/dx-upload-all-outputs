@@ -32,7 +32,6 @@ Overview
    (c) Upload everything that is in the output directory
    (d) Generate a $HOME/job_output.json file that describes it.
 '''
-
 import concurrent.futures
 import os
 import sys
@@ -146,43 +145,59 @@ def get_output_spec():
 
 
 def traverse_output_subdir(odir, subdir):
-    '''Traverse an output directory, and return all the files in
-    it. In a separate list, return all the subdirectories.
+    '''
+    :param odir: output directory
+    :type odir: string
+    :param subdir: subdirectory of the output dir
+    :type subdir: string
+    :returns: A tuple of 2 values: list of files, and list of child subdirectories.
+    :rtype: string list, string list
+
+    Traverse the path *odir*/*subdir*, and return a tuple containing the list of files, and
+    the list of child subdirectories.
     '''
     files = []
-    deep_dirs = []
-    for fname in os.listdir(subdir):
+    child_dirs = []
+    for fname in os.listdir(os.path.join(odir, subdir)):
         path = os.path.join(odir, subdir, fname)
-        if os.path.isdir(path):
-            # subdirectories
-            deep_dirs.append(fname)
-        elif path.startswith('.'):
-            # ignore hidden files
+        if (path.startswith('.') or
+            os.path.islink(path)):
+            # ignore hidden files, directories, and symbolic links
             continue
-        else:
+        elif os.path.isdir(path):
+            # subdirectories
+            child_dirs.append(fname)
+        elif os.path.isfile(path):
             files.append(fname)
-    return files, deep_dirs
+    return files, child_dirs
 
 def deep_list(base_path, rel_path):
     '''
-    Traverse a local directory, and make a list of all the files and
-    subdirectories.
+    :param base_path: path in the local filesystem to a directory
+    :type base_path: string
+    :param rel_path: relative path to *base_path*
+    :type rel_path: string
+    :returns: A list of file paths residing in *base_path*/*rel_path*. The results
+    are relative to *base_path*.
+    :rtype: string list
+
+    Recursively traverse local directory *base_path*/*rel_path*, and make a list of all the files.
+    Files are returned represented as paths relative to *base_path*.
     '''
     files = []
-    dirs = []
     for fname in os.listdir(os.path.join(base_path, rel_path)):
         fname_rel_path = os.path.join(rel_path, fname)
-        if os.path.isdir(os.path.join(base_path, fname_rel_path)):
-            dfiles, ddirs = deep_list(base_path, fname_rel_path)
-            files.extend(dfiles)
-            dirs.append(rel_path)
-            dirs.extend(ddirs)
-        elif fname.startswith('.'):
-            # ignore hidden files
+        full_path = os.path.join(base_path, fname_rel_path)
+        if (fname.startswith('.') or
+            os.path.islink(full_path)):
+            # ignore hidden files and directories, and symbolic links
             continue
-        else:
+        elif os.path.isdir(full_path):
+            diles = deep_list(base_path, fname_rel_path)
+            files.extend(dfiles)
+        elif os.path.isfile(full_path):
             files.append(fname_rel_path)
-    return files, dirs
+    return files
 
 def analyze_output_dir():
     '''
@@ -209,31 +224,31 @@ def analyze_output_dir():
         path = os.path.join(odir, subdir)
         if not os.path.isdir(path):
             continue
-        files, deep_dirs = traverse_output_subdir(odir, path)
+        files, child_dirs = traverse_output_subdir(odir, subdir)
         s_rec = {'path': path,
                  'files': files,
-                 'deep_dirs': deep_dirs,
+                 'child_dirs': child_dirs,
                  'dx_links': []}
         subdir_recs[subdir] = s_rec
     return subdir_recs
 
 
 def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
-    '''
-    Compare the subdirectories found in the output directory to the
+    '''Compare the subdirectories found in the output directory to the
     output specification, and adds annotations to the directory
     descriptions.
 
     An output spec is a list of entries with {class, name} attributes.
     '''
     def sanity_check_field(key):
-        '''Annotate with a class, and sanity check'''
+        ''' Annotate with a class, and sanity check '''
         class_ = output_spec[key]['class']
         s_rec = subdir_recs[key]
         s_rec['class'] = class_
         num_files = len(s_rec['files'])
         if class_ == 'file':
             if num_files != 1:
+                pp(s_rec)
                 report_error_and_exit("key {} is of class {} but there are {} files".format(key, class_, num_files))
         else:
             # array of files, there could be any number of files in the subdirectory (including zero)
@@ -268,7 +283,7 @@ def create_entry(subdir_desc, local_path, target_path, basename):
             'fname': basename,
             'dxlink': None}
 
-def upload_one_file(entry):
+def upload_one_file(entry, dxproj):
     '''Upload a file from the output directory. Record a reference to the
     uploaded object in the entry.
     '''
@@ -278,20 +293,24 @@ def upload_one_file(entry):
         f_obj = dxpy.upload_local_file(local_path)
     else:
         trg_path = "/{}/{}".format(entry['target_dir_path'], entry['fname'])
-        f_obj = dxpy.upload_local_file(local_path, folder= "/" + entry['target_dir_path'])
-    entry['dxlink'] = dxpy.dxlink(f_obj)
+        f_obj = dxpy.upload_local_file(local_path,
+                                       folder=("/"+entry['target_dir_path']),
+                                       parents=True)
+    entry['dxlink'] = dxpy.dxlink(f_obj, project_id=dxproj.get_id())
     print("uploaded file {} -> {}".format(local_path, trg_path))
 
 def sequential_file_upload(to_upload):
     '''Sequentially upload everything that is in the output directory.
     '''
+    dxproj = dxpy.DXProject()
     for entry in to_upload:
-        upload_one_file(entry)
+        upload_one_file(entry, dxproj)
 
 def parallel_file_upload(to_upload):
     ''' same as sequential_file_upload, but in parallel '''
+    dxproj = dxpy.DXProject()
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_num_parallel_uploads) as executor:
-        future_files = {executor.submit(upload_one_file, e): e for e in to_upload}
+        future_files = {executor.submit(upload_one_file, e, dxproj): e for e in to_upload}
         for future in concurrent.futures.as_completed(future_files):
             entry = future_files[future]
             try:
@@ -365,15 +384,13 @@ for key in subdir_recs:
     for fname in subdir_desc['files']:
         to_upload.append(create_entry(subdir_desc, subdir_desc['path'], None, fname))
 
-# Go through the deep subdirectories, make a listing of files to upload,
-# and directories to create in the workspace.
-dirs_to_create = []
+# Go through the deep subdirectories, make a listing of files to upload.
+# We are relying on the platform to create all subdirectories, this
+# means that we do not need to explicitly create them.
 for key in subdir_recs:
     subdir_desc = subdir_recs[key]
-    for ddir in subdir_desc['deep_dirs']:
-        dfiles,dfolders = deep_list(subdir_desc['path'], ddir)
-        dirs_to_create.append(ddir)
-        dirs_to_create.extend(dfolders)
+    for ddir in subdir_desc['child_dirs']:
+        dfiles = deep_list(subdir_desc['path'], ddir)
         for dfile in dfiles:
             rel_path = os.path.dirname(dfile)
             local_path = os.path.join(subdir_desc['path'], rel_path)
@@ -381,22 +398,6 @@ for key in subdir_recs:
                                           local_path,
                                           rel_path,
                                           os.path.basename(dfile)))
-
-# Create the directories in the workspace, this allows uploading all
-# the files in parallel.
-#
-# Notes:
-# 1) We are using the default workspace
-# 2) By creating the parents of all folders, we can
-#    create the folders in any order. In other words, we can ignore
-#    the nesting of some folders.
-# 3) We do not need to catch exceptions, because a side
-#    effect of setting parents=True is that no exceptions
-#    are thrown for creating an already existing directory. Any
-#    other error should stop this script.
-for folder in dirs_to_create:
-    project=dxpy.WORKSPACE_ID
-    dxpy.api.project_new_folder(project, {"folder": "/" + folder, "parents": True})
 
 # upload concurrently
 if args.parallel:

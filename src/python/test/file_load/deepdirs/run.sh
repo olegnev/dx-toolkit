@@ -1,5 +1,5 @@
 main() {
-    dx-download-all-inputs
+#    dx-download-all-inputs
 
     gene_d="out/genes"
     mkdir -p $gene_d
@@ -27,4 +27,22 @@ main() {
     cp -r $phen_d/clue2 $phen_d/hint2
 
     dx-upload-all-outputs
+
+    #  Check that directory structure was copied
+    #  correctly to the project space 
+    dx download --overwrite --recursive "/" 
+    mkdir tmp
+    mkdir tmp/genes
+    mv {A.txt,B.txt,hint,clue} tmp/genes/
+    mkdir tmp/phenotypes
+    mv {C.txt,hint2,clue2} tmp/phenotypes
+
+    DIFF=$(diff -r tmp out)
+    if [ $DIFF != "" ] 
+    then
+        echo "Upload of subdirectories does not work properly"
+        exit 1
+    fi
+
+    # Check that the output json is correct
 }
