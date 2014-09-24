@@ -112,7 +112,6 @@ def get_output_spec():
     output_spec = None
     if 'DX_JOB_ID' in os.environ:
         # works in the cloud, not locally
-        # print("found the job id");
         job_desc = dxpy.describe(dxpy.JOB_ID)
         if job_desc["function"] == "main":
             # The output spec does not apply for subjobs
@@ -129,7 +128,7 @@ def get_output_spec():
     # convert to a dictionary. Each entry in the output spec
     # has {name, class} attributes.
     if output_spec == None:
-        return {}
+        return None
 
     # for each field name, we want to know its class, and if it
     # is optional
@@ -144,6 +143,27 @@ def get_output_spec():
     return subdir_recs
 
 
+def listdir_only_files_and_subdirs(path):
+    ''' Traverses *path* and returns a pair of lists, one for regular files,
+    the other for regular subdirectories. Symbolic links and hidden files/dirs
+    are ignored. '''
+    files = []
+    subdirs = []
+    for fname in os.listdir(path):
+        fname_fullpath = os.path.join(path, fname)
+        if (fname.startswith('.') or
+            os.path.islink(fname_fullpath)):
+            # explicitly ignore hidden files, directories, and symbolic links
+            continue
+        elif os.path.isdir(fname_fullpath):
+            subdirs.append(fname)
+        elif os.path.isfile(fname_fullpath):
+            files.append(fname)
+        else:
+            # ignore anything else
+            pass
+    return files, subdirs
+
 def traverse_output_subdir(odir, subdir):
     '''
     :param odir: output directory
@@ -156,20 +176,7 @@ def traverse_output_subdir(odir, subdir):
     Traverse the path *odir*/*subdir*, and return a tuple containing the list of files, and
     the list of child subdirectories.
     '''
-    files = []
-    child_dirs = []
-    for fname in os.listdir(os.path.join(odir, subdir)):
-        path = os.path.join(odir, subdir, fname)
-        if (path.startswith('.') or
-            os.path.islink(path)):
-            # ignore hidden files, directories, and symbolic links
-            continue
-        elif os.path.isdir(path):
-            # subdirectories
-            child_dirs.append(fname)
-        elif os.path.isfile(path):
-            files.append(fname)
-    return files, child_dirs
+    return listdir_only_files_and_subdirs(os.path.join(odir, subdir))
 
 def deep_list(base_path, rel_path):
     '''
@@ -184,19 +191,9 @@ def deep_list(base_path, rel_path):
     Recursively traverse local directory *base_path*/*rel_path*, and make a list of all the files.
     Files are returned represented as paths relative to *base_path*.
     '''
-    files = []
-    for fname in os.listdir(os.path.join(base_path, rel_path)):
-        fname_rel_path = os.path.join(rel_path, fname)
-        full_path = os.path.join(base_path, fname_rel_path)
-        if (fname.startswith('.') or
-            os.path.islink(full_path)):
-            # ignore hidden files and directories, and symbolic links
-            continue
-        elif os.path.isdir(full_path):
-            diles = deep_list(base_path, fname_rel_path)
-            files.extend(dfiles)
-        elif os.path.isfile(full_path):
-            files.append(fname_rel_path)
+    files, subdirs = listdir_only_files_and_subdirs(os.path.join(base_path, rel_path))
+    for dirname in subdirs:
+        files.extend(deep_list(base_path, os.path.join(rel_path, dirname)))
     return files
 
 def analyze_output_dir():
@@ -218,9 +215,9 @@ def analyze_output_dir():
     odir = file_load_utils.get_output_dir()
     if not os.path.isdir(odir):
         return {}
-    l = os.listdir(odir)
+    _, subdir_list = listdir_only_files_and_subdirs(odir)
     subdir_recs = {}  # mapping from name to attributes
-    for subdir in l:
+    for subdir in subdir_list:
         path = os.path.join(odir, subdir)
         if not os.path.isdir(path):
             continue
@@ -248,7 +245,6 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
         num_files = len(s_rec['files'])
         if class_ == 'file':
             if num_files != 1:
-                pp(s_rec)
                 report_error_and_exit("key {} is of class {} but there are {} files".format(key, class_, num_files))
         else:
             # array of files, there could be any number of files in the subdirectory (including zero)
@@ -283,7 +279,7 @@ def create_entry(subdir_desc, local_path, target_path, basename):
             'fname': basename,
             'dxlink': None}
 
-def upload_one_file(entry, dxproj):
+def upload_one_file(entry):
     '''Upload a file from the output directory. Record a reference to the
     uploaded object in the entry.
     '''
@@ -294,23 +290,21 @@ def upload_one_file(entry, dxproj):
     else:
         trg_path = "/{}/{}".format(entry['target_dir_path'], entry['fname'])
         f_obj = dxpy.upload_local_file(local_path,
-                                       folder=("/"+entry['target_dir_path']),
+                                       folder=("/" + entry['target_dir_path']),
                                        parents=True)
-    entry['dxlink'] = dxpy.dxlink(f_obj, project_id=dxproj.get_id())
+    entry['dxlink'] = dxpy.dxlink(f_obj)
     print("uploaded file {} -> {}".format(local_path, trg_path))
 
 def sequential_file_upload(to_upload):
     '''Sequentially upload everything that is in the output directory.
     '''
-    dxproj = dxpy.DXProject()
     for entry in to_upload:
-        upload_one_file(entry, dxproj)
+        upload_one_file(entry)
 
 def parallel_file_upload(to_upload):
     ''' same as sequential_file_upload, but in parallel '''
-    dxproj = dxpy.DXProject()
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_num_parallel_uploads) as executor:
-        future_files = {executor.submit(upload_one_file, e, dxproj): e for e in to_upload}
+        future_files = {executor.submit(upload_one_file, e): e for e in to_upload}
         for future in concurrent.futures.as_completed(future_files):
             entry = future_files[future]
             try:
@@ -334,19 +328,34 @@ def update_output_json(subdir_recs):
     # Add one entry to the json output file
     def add_rec_to_json(key, class_, dxlinks):
         if not key in output_json:
-            if class_ == 'array:file':
-                ## array type
+            if class_ == None:
+                # we need to guess the type: "array:file" or "file"
+                if len(dxlinks) == 1:
+                    output_json[key] = dxlinks[0]
+                else:
+                    output_json[key] = dxlinks
+            elif class_ == 'array:file':
                 output_json[key] = dxlinks
-            elif not len(dxlinks) == 1:
-                output_json[key] = dxlinks
-            else:
-                ## singleton
+            elif (class_ == 'file' and
+                  len(dxlinks) == 1):
                 output_json[key] = dxlinks[0]
-        else:
-            if isinstance(output_json[key], list):
-                output_json[key].extend(dxlinks)
             else:
-                report_error_and_exit("Key {} was found in output but is not an array".format(key))
+                report_error_and_exit("Type mismatch, key {} is of type {}, but has {} entries"
+                                      .format(key, class_, len(dxlinks)))
+        else:
+            if class_ == None:
+                # we are guessing that the type is: file:array
+                output_json[key].extend(dxlinks)
+            elif (class_ == 'array:file' and
+                  isinstance(output_json[key], list)):
+                output_json[key].extend(dxlinks)
+            elif (class_ == 'file' and
+                  not isinstance(output_json[key], list) and
+                  len(dxlinks) == 1):
+                output_json[key] = dxlinks[0]
+            else:
+                report_error_and_exit("Type mismatch, key {} is of type {}, json={}, len(key)={} entries"
+                                      .format(key, class_, type(output_json[key]), len(dxlinks)))
 
     # Add all the entries
     for key in subdir_recs:
@@ -370,19 +379,21 @@ subdir_recs = analyze_output_dir()
 
 # remove entries the user asked to exclude
 if len(args.exclude) > 0:
-    output_spec = file_load_utils.filter_dict(output_spec, args.exclude)
+    if output_spec is not None:
+        output_spec = file_load_utils.filter_dict(output_spec, args.exclude)
     subdir_recs = file_load_utils.filter_dict(subdir_recs, args.exclude)
 
 # Compare against the output spec
-compare_to_output_spec_and_annotate(subdir_recs, output_spec)
+if output_spec is not None:
+    compare_to_output_spec_and_annotate(subdir_recs, output_spec)
 
 # Open the subdirectories hash into a list with an entry per file. This avoids
 # sharing data between concurrent threads.
 to_upload = []
 for key in subdir_recs:
     subdir_desc = subdir_recs[key]
-    for fname in subdir_desc['files']:
-        to_upload.append(create_entry(subdir_desc, subdir_desc['path'], None, fname))
+    for filename in subdir_desc['files']:
+        to_upload.append(create_entry(subdir_desc, subdir_desc['path'], None, filename))
 
 # Go through the deep subdirectories, make a listing of files to upload.
 # We are relying on the platform to create all subdirectories, this
@@ -392,9 +403,9 @@ for key in subdir_recs:
     for ddir in subdir_desc['child_dirs']:
         dfiles = deep_list(subdir_desc['path'], ddir)
         for dfile in dfiles:
-            rel_path = os.path.dirname(dfile)
+            rel_path = os.path.dirname(os.path.join(ddir, dfile))
             local_path = os.path.join(subdir_desc['path'], rel_path)
-            to_upload.append(create_entry(None,  # we are not going to record the file handler
+            to_upload.append(create_entry(subdir_desc,
                                           local_path,
                                           rel_path,
                                           os.path.basename(dfile)))
@@ -408,8 +419,7 @@ else:
 # Uploads are complete, we can collect all results. This avoids
 # data races in the parallel upload case.
 for entry in to_upload:
-    if entry['subdir_desc'] is not None:
-        entry['subdir_desc']['dx_links'].append(entry['dxlink'])
+    entry['subdir_desc']['dx_links'].append(entry['dxlink'])
 
 if args.clearJSON:
     file_load_utils.rm_output_json_file()
