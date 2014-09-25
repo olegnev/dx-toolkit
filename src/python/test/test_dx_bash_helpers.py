@@ -221,6 +221,15 @@ class TestDXBashHelpers(DXTestCase):
 
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_deepdirs(self):
+        def check_output_key(job_output, out_param_name, num_files):
+            ''' check that an output key appears, and has the correct number of files '''
+            print('checking output for param={}'.format(out_param_name))
+            if not out_param_name in job_output:
+                raise "Error: key {} does not appear in the job output".format(out_param_name)
+            dxlinks = job_output[out_param_name]
+            if not len(dxlinks) == num_files:
+                raise "Error: key {} should have {} files, but has {}".format(out_param_name, num_files, len(dxlinks))
+
         ''' Tests the use of subdirectories in the output directory '''
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
             env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
@@ -230,23 +239,20 @@ class TestDXBashHelpers(DXTestCase):
             applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'deepdirs'), p.get_id())
 
             # Run the applet
-            cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
+            cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
             job_id = run(cmd_args, env=env).strip()
+
+            # figure out the job-id, so we can wait for the parent job to complete.
+            run(['dx', 'wait', job_id], env=env)
+
+            print("Test completed successfully, checking outputs\n")
 
             # Assertions about the output. There should be two result keys
             job_handler = dxpy.get_handler(job_id)
             job_output = job_handler.output
 
-            check_output_key("genes", 8)
-            check_output_key("phenotypes", 7)
-
-            def check_output_key(out_param_name):
-                ''' check that an output key appears, and has the correct number of files '''
-                if not out_param_name in job_output:
-                    raise "Error: key {} does not appear in the job output".format(out_param_name)
-                dxlinks = job_output[out_param_name]
-                if not len(dxlinks) == num_files:
-                    raise "Error: key {} should have {} files, but has {}".format(out_param_name, num_files, len(dxlinks))
+            check_output_key(job_output, "genes", 8)
+            check_output_key(job_output, "phenotypes", 7)
 
 
 class TestDXBashHelpersBenchmark(DXTestCase):
