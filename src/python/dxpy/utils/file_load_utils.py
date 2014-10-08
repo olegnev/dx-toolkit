@@ -337,9 +337,8 @@ def gen_bash_vars(job_input_file):
 
     all_keys = set()
     var_defs_hash = {}
-    def gen_text_line_and_check_name_collision(key, val, check=False):
+    def gen_text_line_and_name_collision(key, val:
         ''' In the absence of a name collision, create a line describing a bash variable.
-        If check is True, compare to old method of creating bash variables.
         '''
         if key not in environ and key not in all_keys:
             all_keys.add(key)
@@ -348,12 +347,12 @@ def gen_bash_vars(job_input_file):
             sys.stderr.write(textwrap.fill("Creating environment variable ({}) would cause a name collision\n".format(key)))
 
     for file_key, desc in file_key_descs.iteritems():
-        gen_text_line_and_check_name_collision(file_key, string_of_value(desc['handler']), check=True)
-        gen_text_line_and_check_name_collision(file_key + "_filename", string_of_value(desc['filename']))
-        gen_text_line_and_check_name_collision(file_key + "_prefix", string_of_value(desc['prefix']))
-        gen_text_line_and_check_name_collision(file_key + "_path", string_of_value(desc['path']))
+        gen_text_line_and_name_collision(file_key, string_of_value(desc['handler']))
+        gen_text_line_and_name_collision(file_key + "_filename", string_of_value(desc['filename']))
+        gen_text_line_and_name_collision(file_key + "_prefix", string_of_value(desc['prefix']))
+        gen_text_line_and_name_collision(file_key + "_path", string_of_value(desc['path']))
     for key, desc in rest_hash.iteritems():
-        gen_text_line_and_check_name_collision(key, string_of_value(desc), check=True)
+        gen_text_line_and_name_collision(key, string_of_value(desc))
 
     return var_defs_hash
 
