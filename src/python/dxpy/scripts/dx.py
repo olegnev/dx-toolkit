@@ -1753,7 +1753,7 @@ def download(args):
 
     def rel2abs(path, project):
         if path.startswith('/') or dxpy.WORKSPACE_ID != project:
-            abs_path, strip_prefix = path, ''
+            abs_path, strip_prefix = path, os.path.dirname(path.rstrip('/'))
         else:
             wd = get_env_var('DX_CLI_WD', u'/')
             abs_path, strip_prefix = os.path.join(wd, path), wd
@@ -1773,6 +1773,7 @@ def download(args):
             return [f for f in cached_folder_lists[project] if f.startswith(path) and '/' not in f[len(path)+1:]]
 
     folders_to_get, files_to_get, count = collections.defaultdict(list), collections.defaultdict(list), 0
+    foldernames, filenames = [], []
     for path in args.paths:
         # Attempt to resolve name. If --all is given or the path looks like a glob, download all matches.
         # Otherwise, the resolver will display a picker (or error out if there is no tty to display to).
@@ -1788,6 +1789,9 @@ def download(args):
         matching_folders = []
         if project is not None:
             # project may be none if path is an ID and there is no project context
+            colon_pos = get_first_pos_of_char(":", path)
+            if colon_pos >= 0:
+                path = path[colon_pos + 1:]
             abs_path, strip_prefix = rel2abs(path, project)
 
             parent_folder = os.path.dirname(abs_path)
@@ -1801,6 +1805,16 @@ def download(args):
         files_to_get[project].extend(matching_files)
         folders_to_get[project].extend(((f, strip_prefix) for f in matching_folders))
         count += len(matching_files) + len(matching_folders)
+
+        filenames.extend(f["describe"]["name"] for f in matching_files)
+        foldernames.extend(f[len(strip_prefix):].lstrip('/') for f in matching_folders)
+
+    if len(filenames) > 0 and len(foldernames) > 0:
+        name_conflicts = set(filenames) & set(foldernames)
+        if len(name_conflicts) > 0:
+            msg = "Error: The following paths are both file and folder names, and cannot be downloaded to the same destination: "
+            msg += ", ".join(sorted(name_conflicts))
+            err_exit(fill(msg))
 
     if args.output is None:
         destdir, dest_filename = os.getcwd(), None
@@ -1974,7 +1988,7 @@ def upload(args, **kwargs):
     elif args.path is None:
         args.path = args.output
 
-    if len(args.filename) > 1 and not args.path.endswith("/"):
+    if len(args.filename) > 1 and args.path is not None and not args.path.endswith("/"):
         # When called as "dx upload x --dest /y", we upload to "/y"; with --dest "/y/", we upload to "/y/x".
         # Called as "dx upload x y --dest /z", z is implicitly a folder, so append a slash to avoid incorrect path
         # resolution.
@@ -4446,7 +4460,7 @@ def main():
             sys.stdout.flush()
         except IOError as e:
             if e.errno == errno.EPIPE:
-                if dxpy._DEBUG:
+                if dxpy._DEBUG > 0:
                     print("Broken pipe", file=sys.stderr)
             else:
                 raise
