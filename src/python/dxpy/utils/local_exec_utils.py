@@ -328,9 +328,9 @@ def run_one_entry_point(job_id, function, input_hash, run_spec, depends_on, name
         env_path = os.path.join(job_homedir, 'environment')
         with open(env_path, 'w') as fd:
             job_input_file = os.path.join(job_homedir,'job_input.json')
-            lines = file_load_utils.gen_lines_for_bash_vars(job_input_file)
-            for var_line in lines:
-                fd.write("{}\n".format(var_line))
+            var_defs_hash = file_load_utils.gen_bash_vars(job_input_file)
+            for key, val in var_defs_hash.iteritems():
+                fd.write("{}={}\n".format(key, val))
 
     print(BOLD() + 'Logs:' + ENDC())
     start_time = datetime.datetime.now()

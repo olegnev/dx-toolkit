@@ -86,45 +86,45 @@ import os
 import math
 import sys
 import collections
+import textwrap
 import dxpy
 from dxpy.compat import environ
 from ..exceptions import DXError
 
-def get_input_dir():
+def get_input_dir(expand_home_var=True):
     '''
-    :rtype : string
-    :returns : path to input directory
+    :param expand_home_var: if true, expand the home directory to a full path
+    :rtype: string
+    :returns: path to input directory
 
     Returns the input directory, where all inputs are downloaded
     '''
-    home_dir = os.environ.get('HOME')
+    if expand_home_var:
+        home_dir = os.environ.get('HOME')
+    else:
+        home_dir="$HOME"
     idir = os.path.join(home_dir, 'in')
     return idir
 
-def get_relative_input_dir():
+def get_output_dir(expand_home_var=True):
     '''
-    :rtype : string
-    :returns : relative path to input directory
-
-    Returns the input directory, where all inputs are downloaded, relative to HOME
-    '''
-    return "$HOME/in"
-
-def get_output_dir():
-    '''
-    :rtype : string
-    :returns : path to output directory
+    :param expand_home_var: if true, expand the home directory to a full path
+    :rtype: string
+    :returns: path to output directory
 
     Returns the output directory, where all outputs are created, and
     uploaded from
     '''
-    home_dir = os.environ.get('HOME')
+    if expand_home_var:
+        home_dir = os.environ.get('HOME')
+    else:
+        home_dir="$HOME"
     odir = os.path.join(home_dir, 'out')
     return odir
 
 def get_input_json_file():
     """
-    :rtype : string
+    :rtype: string
     :returns: path to input JSON file
     """
     home_dir = os.environ.get('HOME')
@@ -132,8 +132,8 @@ def get_input_json_file():
 
 def get_output_json_file():
     """
-    :rtype : string
-    :returns : Path to output JSON file
+    :rtype: string
+    :returns: Path to output JSON file
     """
     home_dir = os.environ.get('HOME')
     return os.path.join(home_dir, "job_output.json")
@@ -168,9 +168,9 @@ def ensure_dir(path):
 def make_unix_filename(fname):
     """
     :param fname: the basename of a file (e.g., xxx in /zzz/yyy/xxx).
-    :return: a valid unix filename
+    :returns: a valid unix filename
     :rtype: string
-    :raises DXError: if the filename is invalid on a Unix system
+    :raises: DXError if the filename is invalid on a Unix system
 
     The problem being solved here is that *fname* is a python string, it
     may contain characters that are invalid for a file name. We replace all the slashes with %2F.
@@ -265,7 +265,7 @@ def analyze_bash_vars(job_input_file):
     '''
     This function examines the input file, and calculates variables to
     instantiate in the shell environment. It is called right before starting the
-    exeuction of an app in a worker.
+    execution of an app in a worker.
 
     For each input key, we want to have
     $var
@@ -279,16 +279,16 @@ def analyze_bash_vars(job_input_file):
     $HOME/in/genes/A.txt
                    B.txt
 
-    export genes=("$dnanexus_link {id: file-xxxx}" "$dnanexus_link {id: file-yyyy}")
+    export genes=('{"$dnanexus_link": "file-xxxx"}' '{"$dnanexus_link": "file-yyyy"}')
     export genes_filename=("A.txt" "B.txt")
     export genes_prefix=("A" "B")
-    export genes_path=("$home/in/genes/A.txt" "$home/in/genes/B.txt")
-'''
-    dirs,file_entries,rest_hash = get_job_input_filenames(job_input_file)
+    export genes_path=("$HOME/in/genes/A.txt" "$HOME/in/genes/B.txt")
+    '''
+    _, file_entries, rest_hash = get_job_input_filenames(job_input_file)
     def factory():
         return {'handler': [], 'filename': [],  'prefix': [], 'path': []}
     file_key_descs = collections.defaultdict(factory)
-    rel_home_dir = get_relative_input_dir()
+    rel_home_dir = get_input_dir(expand_home_var=False)
     for key, entries in file_entries.iteritems():
         for entry in entries:
             filename = entry['trg_fname']
@@ -301,53 +301,84 @@ def analyze_bash_vars(job_input_file):
             k_desc['path'].append(os.path.join(rel_home_dir, filename))
     return file_key_descs, rest_hash
 
+
 #
 # Note: pipes.quote() to be replaced with shlex.quote() in Python 3 (see http://docs.python.org/2/library/pipes.html#pipes.quote)
 # TODO: Detect and warn about collisions with essential environment variables
-def gen_lines_for_bash_vars(job_input_file):
-    """ calculates a line for each shell variable to instantiate.
-
+def gen_bash_vars(job_input_file):
+    """
     :param job_input_file: path to a JSON file describing the job inputs
     :return: list of lines
     :rtype: list of strings
+
+    Calculates a line for each shell variable to instantiate.
     """
-    file_key_descs,rest_hash = analyze_bash_vars(job_input_file)
+    file_key_descs, rest_hash = analyze_bash_vars(job_input_file)
 
     def string_of_elem(elem):
+        s = None
         if isinstance(elem, basestring):
-            return '"{}"'.format(elem )
+            s = elem
         elif isinstance(elem, dxpy.DXFile):
-            ln = dxpy.dxlink(elem, project_id=elem.get_proj_id())
-            return pipes.quote(json.dumps(ln))
+            s = json.dumps(dxpy.dxlink(elem))
         else:
-            return pipes.quote(json.dumps(elem))
+            s = json.dumps(elem)
+        return pipes.quote(s)
 
-    def string_of_list(val_list):
-        if len(val_list) > 1:
-            str = " ".join([string_of_elem(vitem) for vitem in val_list])
-            return "( {} )".format(str)
+    def string_of_value(val):
+        if isinstance(val, list):
+            if len(val) > 1:
+                str = " ".join([string_of_elem(vitem) for vitem in val])
+                return "( {} )".format(str)
+            else:
+                return string_of_elem(val[0])
         else:
-            return string_of_elem(val_list[0])
-
+            return string_of_elem(val)
 
     all_keys = set()
-    lines = []
-    # In the absence of a name collision, create a line describing a bash variable.
-    def gen_text_line_and_check_name_collision(key, val):
+    var_defs_hash = {}
+    def gen_text_line_and_check_name_collision(key, val, check=False):
+        ''' In the absence of a name collision, create a line describing a bash variable.
+        If check is True, compare to old method of creating bash variables.
+        '''
         if key not in environ and key not in all_keys:
             all_keys.add(key)
-            lines.append("export {}={}".format(key, val))
+            var_defs_hash[key] = val
         else:
-            lines.append("# Creating environment variable {} would cause a name collision".format(key))
+            sys.stderr.write(textwrap.fill("Creating environment variable ({}) would cause a name collision\n".format(key)))
 
-    for file_key,desc in file_key_descs.iteritems():
-        gen_text_line_and_check_name_collision(file_key, string_of_list(desc['handler']))
-        gen_text_line_and_check_name_collision(file_key + "_filename", string_of_list(desc['filename']))
-        gen_text_line_and_check_name_collision(file_key + "_prefix", string_of_list(desc['prefix']))
-        gen_text_line_and_check_name_collision(file_key + "_path", string_of_list(desc['path']))
-    for key,desc in rest_hash.iteritems():
-        gen_text_line_and_check_name_collision(key, string_of_list(desc))
+    for file_key, desc in file_key_descs.iteritems():
+        gen_text_line_and_check_name_collision(file_key, string_of_value(desc['handler']), check=True)
+        gen_text_line_and_check_name_collision(file_key + "_filename", string_of_value(desc['filename']))
+        gen_text_line_and_check_name_collision(file_key + "_prefix", string_of_value(desc['prefix']))
+        gen_text_line_and_check_name_collision(file_key + "_path", string_of_value(desc['path']))
+    for key, desc in rest_hash.iteritems():
+        gen_text_line_and_check_name_collision(key, string_of_value(desc), check=True)
 
-    return lines
+    return var_defs_hash
 
 
+def _gen_bash_vars_old(job_input_file):
+    """
+    Old code for generating bash variables from the input file. Previously used inside a script.
+    We use it to verify the new version of the code.
+    """
+    def old_string_of_elem(elem):
+        """
+        :param elem: a value read from a JSON file
+        :returns: string to be instantiated as a bash variable
+        :rtype: string
+        """
+        if isinstance(v, list):
+            return "( {} )".format(" ".join([pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v]))
+        else:
+            return "{}".format(pipes.quote(v if isinstance(v, basestring) else json.dumps(v)))
+
+    key_val_map={}
+    for k, v in json.load(open(job_input_file)).iteritems():
+        key_val_map[k] = old_string_of_elem(v)
+    return key_val_map
+
+def _gen_bash_var_lines_old(job_input_file):
+    ''' The original old code for generating bash variables. Used for comparison purposes. '''
+    return ["export {k}=( {vlist} )".format(k=k, vlist=" ".join([pipes.quote(vitem if isinstance(vitem, basestring) else json.dumps(vitem)) for vitem in v])) if isinstance(v, list) else "export {k}={v}".format(k=k, v=pipes.quote(v if isinstance(v, basestring) else json.dumps(v))) for k, v in json.load(open(job_input_file)).iteritems()]

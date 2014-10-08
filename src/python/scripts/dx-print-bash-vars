@@ -22,16 +22,43 @@ from dxpy.utils import file_load_utils
 from dxpy.utils.printing import fill, refill_paragraphs, BOLD, RED
 
 
-description = '''It is a utility that parses the input description,
-and prints bash variables to stdout.
-
-This utility is ''' + BOLD('Intended for dxpy internal use')
+description = '''Parses $HOME/job_input.json and prints the bash
+variables that would be available in the execution environment.
+This utility is ''' + RED(BOLD('EXPERIMENTAL')) + '''.'''
 
 parser = argparse.ArgumentParser(description=refill_paragraphs(description),
                                  formatter_class=argparse.RawTextHelpFormatter)
+parser.set_defaults(dbg_compare_old=False)
+parser.add_argument('--dbg-compare-old',
+                    help='Compare generated bash variables to old version.',
+                    action="store_true",  dest="dbg_compare_old")
 args = parser.parse_args()
 
 job_input_file = file_load_utils.get_input_json_file()
-lines = file_load_utils.gen_lines_for_bash_vars(job_input_file)
-for var_line in lines:
-    print("{}\n".format(var_line))
+var_defs_hash = file_load_utils.gen_bash_vars(job_input_file)
+
+if args.dbg_compare_old:
+    # Debugging
+    #
+    # Compare with older version of the variable generation code
+    var_defs_hash_old = file_load_utils._gen_bash_vars_old(job_input_file)
+    for key, old_val in var_defs_hash_old.iteritems():
+        if key not in var_defs_hash:
+            print("Variable {} does not exist in the new version".format(key))
+        elif var_defs_hash[key] != old_val:
+            print("Bad generation of bash variable   new={} old={}".format(var_defs_hash[key], old_val))
+    print("")
+    print("old vars I:")
+    lines = file_load_utils._gen_bash_var_lines_old(job_input_file)
+    for ln in lines:
+        print("{}".format(ln))
+    print("")
+    print("old vars II:")
+    for key, old_val in var_defs_hash_old.iteritems():
+        print("export {}={}".format(key, old_val))
+    print("")
+    print("new vars:")
+
+# Standard usage: print all variable definitions
+for key, val in var_defs_hash.iteritems():
+    print("export {}={}".format(key, val))
