@@ -35,9 +35,9 @@ check_var_defined() {
 
     if [ $# -ne 3 ];
     then
-        return 
+        return
     fi
-      
+
     if [[ ! "$1" == "$2" ]];
     then
         echo "Error: expecting environment variable $1 to equal $2"
@@ -58,10 +58,10 @@ check_array_var_defined() {
 
     if [ $# -ne 3 ];
     then
-        return 
+        return
     fi
 
-    if [ ! cmp_string_arrays $1 $2 ]; 
+    if [ ! cmp_string_arrays $1 $2 ];
     then
         echo "Error: expecting environment variable $1 to equal $2"
         dx-jobutil-report-error "Error: expecting environment variable $1 to equal $2" "AppError"
@@ -78,7 +78,7 @@ cmp_string_arrays() {
     fi
 
     local a=$1
-    local len_a=${#a[@]} 
+    local len_a=${#a[@]}
     local b=$2
     local len_b=${#b[@]}
 
