@@ -111,7 +111,7 @@ def update_environ(**kwargs):
 
 class TestDXBashHelpers(DXTestCase):
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
-    def test_quick(self):
+    def test_vars(self):
         '''  Quick test for the bash variables '''
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
             env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
@@ -124,7 +124,13 @@ class TestDXBashHelpers(DXTestCase):
             applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'vars'), p.get_id())
 
             # Run the applet
-            applet_args = ['-iseq1=A.txt', '-iseq2=A.txt', '-igenes=A.txt', '-igenes=A.txt']
+            applet_args = ['-iseq1=A.txt', '-iseq2=A.txt', '-igenes=A.txt', '-igenes=A.txt',
+                           '-ii=5', '-ix=4.2', '-ib=true', '-is=hello',
+                           '-iil=6', '-iil=7', '-iil=8',
+                           '-ixl=3.3', '-ixl=4.4', '-ixl=5.0',
+                           '-ibl=true', '-ibl=false', '-ibl=true',
+                           '-isl=hello', '-isl=world', '-isl=next']
+#                           '-imisc={"hello": "world", "foo": true}']
             cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)

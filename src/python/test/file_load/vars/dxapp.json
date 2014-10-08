@@ -17,7 +17,7 @@
     {"name": "xl", "class": "array:float"},
     {"name": "bl", "class": "array:boolean"},
     {"name": "sl", "class": "array:string"},
-    {"name": "misc", "class": "hash"}
+    {"name": "misc", "class": "hash", "optional" : true}
   ],
   "outputSpec": [
     {"name": "foo",    "class": "array:file", "optional" : true}
