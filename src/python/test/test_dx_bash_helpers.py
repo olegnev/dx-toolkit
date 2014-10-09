@@ -221,16 +221,26 @@ class TestDXBashHelpers(DXTestCase):
 
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_deepdirs(self):
-        def check_output_key(job_output, out_param_name, num_files):
+        ''' Tests the use of subdirectories in the output directory '''
+        def check_output_key(job_output, out_param_name, num_files, dxproj):
             ''' check that an output key appears, and has the correct number of files '''
             print('checking output for param={}'.format(out_param_name))
-            if not out_param_name in job_output:
+            if out_param_name not in job_output:
                 raise "Error: key {} does not appear in the job output".format(out_param_name)
-            dxlinks = job_output[out_param_name]
-            if not len(dxlinks) == num_files:
-                raise "Error: key {} should have {} files, but has {}".format(out_param_name, num_files, len(dxlinks))
+            dxlink_id_list = job_output[out_param_name]
+            if not len(dxlink_id_list) == num_files:
+                raise "Error: key {} should have {} files, but has {}".format(out_param_name, num_files, len(dxlink_id_list))
 
-        ''' Tests the use of subdirectories in the output directory '''
+        def verify_files_in_dir(path, expected_filenames, dxproj):
+            ''' verify that a particular set of files resides in a directory '''
+            dir_listing = dxproj.list_folder(folder=path, only="objects")
+            for elem in dir_listing["objects"]:
+                handler = dxpy.get_handler(elem["id"])
+                if not isinstance(handler, dxpy.DXFile):
+                    continue
+                if handler.name not in expected_filenames:
+                    raise "Error: file {} should reside in directory {}".format(handler.name, path)
+
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
             env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
 
@@ -247,13 +257,19 @@ class TestDXBashHelpers(DXTestCase):
 
             print("Test completed successfully, checking outputs\n")
 
-            # Assertions about the output. There should be two result keys
+            # Assertions about the output. There should be three result keys
             job_handler = dxpy.get_handler(job_id)
             job_output = job_handler.output
 
-            check_output_key(job_output, "genes", 8)
-            check_output_key(job_output, "phenotypes", 7)
+            check_output_key(job_output, "genes", 8, p)
+            check_output_key(job_output, "phenotypes", 7, p)
+            check_output_key(job_output, "report", 1, p)
 
+            verify_files_in_dir("/clue", ["X_1.txt", "X_2.txt", "X_3.txt"], p)
+            verify_files_in_dir("/hint", ["V_1.txt", "V_2.txt", "V_3.txt"], p)
+            verify_files_in_dir("/clue2", ["Y_1.txt", "Y_2.txt", "Y_3.txt"], p)
+            verify_files_in_dir("/hint2", ["Z_1.txt", "Z_2.txt", "Z_3.txt"], p)
+            verify_files_in_dir("/", ["A.txt", "B.txt", "C.txt", "luke.txt"], p)
 
 class TestDXBashHelpersBenchmark(DXTestCase):
 

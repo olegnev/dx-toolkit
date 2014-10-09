@@ -30,6 +30,10 @@ main() {
         echo "ACGT_$i" > $phen_d/hint2/Z_$i.txt
     done
 
+    # single file
+    mkdir -p out/report
+    echo "Luke, behind you!" > out/report/luke.txt
+
     # hidden files, directories, and symbolic links. These should be skipped
     mkdir $gene_d/.hide
     echo "XYZ" > $gene_d/.hide/V.txt
@@ -50,6 +54,8 @@ main() {
     mv space/{A.txt,B.txt,hint,clue} tmp/genes/
     mkdir tmp/phenotypes
     mv space/{C.txt,hint2,clue2} tmp/phenotypes
+    mkdir tmp/report
+    mv space/luke.txt tmp/report/
 
     # check that hidden files and symbolic links were skipped
     # the space directory should now be empty

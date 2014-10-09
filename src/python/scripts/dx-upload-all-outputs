@@ -164,20 +164,6 @@ def listdir_only_files_and_subdirs(path):
             pass
     return files, subdirs
 
-def traverse_output_subdir(odir, subdir):
-    '''
-    :param odir: output directory
-    :type odir: string
-    :param subdir: subdirectory of the output dir
-    :type subdir: string
-    :returns: A tuple of 2 values: list of files, and list of child subdirectories.
-    :rtype: string list, string list
-
-    Traverse the path *odir*/*subdir*, and return a tuple containing the list of files, and
-    the list of child subdirectories.
-    '''
-    return listdir_only_files_and_subdirs(os.path.join(odir, subdir))
-
 def deep_list(base_path, rel_path):
     '''
     :param base_path: path in the local filesystem to a directory
@@ -196,7 +182,7 @@ def deep_list(base_path, rel_path):
         files.extend(deep_list(base_path, os.path.join(rel_path, dirname)))
     return files
 
-def analyze_output_dir():
+def get_output_subdir_info():
     '''
     Figure out what the output directory looks like.
     We are interested in elements of the form:
@@ -221,7 +207,7 @@ def analyze_output_dir():
         path = os.path.join(odir, subdir)
         if not os.path.isdir(path):
             continue
-        files, child_dirs = traverse_output_subdir(odir, subdir)
+        files, child_dirs = listdir_only_files_and_subdirs(os.path.join(odir, subdir))
         s_rec = {'path': path,
                  'files': files,
                  'child_dirs': child_dirs,
@@ -327,8 +313,8 @@ def update_output_json(subdir_recs):
 
     # Add one entry to the json output file
     def add_rec_to_json(key, class_, dxlinks):
-        if not key in output_json:
-            if class_ == None:
+        if key not in output_json:
+            if class_ is None:
                 # we need to guess the type: "array:file" or "file"
                 if len(dxlinks) == 1:
                     output_json[key] = dxlinks[0]
@@ -343,7 +329,7 @@ def update_output_json(subdir_recs):
                 report_error_and_exit("Type mismatch, key {} is of type {}, but has {} entries"
                                       .format(key, class_, len(dxlinks)))
         else:
-            if class_ == None:
+            if class_ is None:
                 # we are guessing that the type is: file:array
                 output_json[key].extend(dxlinks)
             elif (class_ == 'array:file' and
@@ -375,7 +361,7 @@ def update_output_json(subdir_recs):
 
 ## entry point
 output_spec = get_output_spec()
-subdir_recs = analyze_output_dir()
+subdir_recs = get_output_subdir_info()
 
 # remove entries the user asked to exclude
 if len(args.exclude) > 0:
