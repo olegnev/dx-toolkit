@@ -111,16 +111,16 @@ def update_environ(**kwargs):
 class TestDXBashHelpers(DXTestCase):
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_basic(self):
-        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
-            env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
+        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
+            env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
             # Upload some files for use by the applet
-            dxpy.upload_string("1234\n", project=p.get_id(), name="A.txt")
-            dxpy.upload_string("ABCD\n", project=p.get_id(), name="B.txt")
+            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt")
+            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt")
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
-            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'basic'), p.get_id())
+            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'basic'), dxproj.get_id())
 
             # Run the applet
             applet_args = ['-iseq1=A.txt', '-iseq2=B.txt', '-iref=A.txt', '-iref=B.txt', "-ivalue=5", "-iages=4"]
@@ -131,16 +131,16 @@ class TestDXBashHelpers(DXTestCase):
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_sub_jobs(self):
         '''  Tests a bash script that generates sub-jobs '''
-        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
-            env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
+        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
+            env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
              # Upload some files for use by the applet
-            dxpy.upload_string("1234\n", project=p.get_id(), name="A.txt")
-            dxpy.upload_string("ABCD\n", project=p.get_id(), name="B.txt")
+            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt")
+            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt")
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
-            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'with-subjobs'), p.get_id())
+            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'with-subjobs'), dxproj.get_id())
              # Run the applet.
             # Since the job creates two sub-jobs, we need to be a bit more sophisticated
             # in order to wait for completion.
@@ -202,16 +202,16 @@ class TestDXBashHelpers(DXTestCase):
     @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_parseq(self):
         ''' Tests the parallel/sequential variations '''
-        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
-            env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
+        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
+            env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
             # Upload some files for use by the applet
-            dxpy.upload_string("1234\n", project=p.get_id(), name="A.txt")
-            dxpy.upload_string("ABCD\n", project=p.get_id(), name="B.txt")
+            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt")
+            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt")
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
-            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'parseq'), p.get_id())
+            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'parseq'), dxproj.get_id())
 
             # Run the applet
             applet_args = ["-iseq1=A.txt", "-iseq2=B.txt", "-iref=A.txt", "-iref=B.txt"]
@@ -241,12 +241,12 @@ class TestDXBashHelpers(DXTestCase):
                 if handler.name not in expected_filenames:
                     raise "Error: file {} should reside in directory {}".format(handler.name, path)
 
-        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
-            env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
+        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
+            env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
-            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'deepdirs'), p.get_id())
+            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'deepdirs'), dxproj.get_id())
 
             # Run the applet
             cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
@@ -261,15 +261,16 @@ class TestDXBashHelpers(DXTestCase):
             job_handler = dxpy.get_handler(job_id)
             job_output = job_handler.output
 
-            check_output_key(job_output, "genes", 8, p)
-            check_output_key(job_output, "phenotypes", 7, p)
-            check_output_key(job_output, "report", 1, p)
+            check_output_key(job_output, "genes", 8, dxproj)
+            check_output_key(job_output, "phenotypes", 7, dxproj)
+            check_output_key(job_output, "report", 1, dxproj)
 
-            verify_files_in_dir("/clue", ["X_1.txt", "X_2.txt", "X_3.txt"], p)
-            verify_files_in_dir("/hint", ["V_1.txt", "V_2.txt", "V_3.txt"], p)
-            verify_files_in_dir("/clue2", ["Y_1.txt", "Y_2.txt", "Y_3.txt"], p)
-            verify_files_in_dir("/hint2", ["Z_1.txt", "Z_2.txt", "Z_3.txt"], p)
-            verify_files_in_dir("/", ["A.txt", "B.txt", "C.txt", "luke.txt"], p)
+            verify_files_in_dir("/clue", ["X_1.txt", "X_2.txt", "X_3.txt"], dxproj)
+            verify_files_in_dir("/hint", ["V_1.txt", "V_2.txt", "V_3.txt"], dxproj)
+            verify_files_in_dir("/clue2", ["Y_1.txt", "Y_2.txt", "Y_3.txt"], dxproj)
+            verify_files_in_dir("/hint2", ["Z_1.txt", "Z_2.txt", "Z_3.txt"], dxproj)
+            verify_files_in_dir("/", ["A.txt", "B.txt", "C.txt"], dxproj)
+            verify_files_in_dir("/foo/bar", ["luke.txt"], dxproj)
 
 class TestDXBashHelpersBenchmark(DXTestCase):
 
@@ -284,16 +285,16 @@ class TestDXBashHelpersBenchmark(DXTestCase):
             out.write('\0')
 
     def run_applet_with_flags(self, flag_list, num_files, file_size_bytes):
-        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
-            env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
+        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
+            env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
             # Upload file
             self.create_file_of_size("A.txt", file_size_bytes);
-            remote_file = dxpy.upload_local_file(filename="A.txt", project=p.get_id(), folder='/')
+            remote_file = dxpy.upload_local_file(filename="A.txt", project=dxproj.get_id(), folder='/')
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
-            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'benchmark'), p.get_id())
+            applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'benchmark'), dxproj.get_id())
 
             # Add several files to the output
             applet_args = []

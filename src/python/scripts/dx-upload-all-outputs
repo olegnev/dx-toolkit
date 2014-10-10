@@ -47,8 +47,9 @@ running in the DNAnexus Platform.
 This utility is ''' + RED(BOLD('EXPERIMENTAL')) + ''' and its
 functionality is subject to change at any time without notice.
 
-Uploads all files in the directory $HOME/out, as described below, and
-adds relevant entries into the job_output.json file.
+Uploads all files and subdirectories in the directory $HOME/out, as
+described below. It also adds relevant entries into the job_output.json
+file.
 
 By convention, only directories with names equal to output parameter
 names are expected to be found in the output directory, and any file(s)
@@ -62,9 +63,15 @@ file with value
 
     {"$dnanexus_link": "file-xxxx"}
 
-where "file-xxxx" is the ID of the newly uploaded file.  If multiple
+where "file-xxxx" is the ID of the newly uploaded file. If multiple
 files are found, they will be added as an array output (in unspecified
-order).
+order). If subdirectories are found under $HOME/out/FOO, then they are
+uploaded in their entirety to the workspace, and values are added
+to FOO in the job_output.json file. For example, the path:
+
+    $HOME/out/FOO/BAR/XXX.TXT
+
+will be uploaded to /BAR/XXX.TXT.
 '''
 
 parser = argparse.ArgumentParser(description=refill_paragraphs(description),
@@ -177,10 +184,13 @@ def deep_list(base_path, rel_path):
     Recursively traverse local directory *base_path*/*rel_path*, and make a list of all the files.
     Files are returned represented as paths relative to *base_path*.
     '''
+    result = []
     files, subdirs = listdir_only_files_and_subdirs(os.path.join(base_path, rel_path))
+    for filename in files:
+        result.append(os.path.join(rel_path, filename))
     for dirname in subdirs:
-        files.extend(deep_list(base_path, os.path.join(rel_path, dirname)))
-    return files
+        result.extend(deep_list(base_path, os.path.join(rel_path, dirname)))
+    return result
 
 def get_output_subdir_info():
     '''
@@ -311,37 +321,26 @@ def update_output_json(subdir_recs):
         with open(output_file, 'r') as fh:
             output_json = json.load(fh)
 
-    # Add one entry to the json output file
-    def add_rec_to_json(key, class_, dxlinks):
-        if key not in output_json:
-            if class_ is None:
-                # we need to guess the type: "array:file" or "file"
-                if len(dxlinks) == 1:
-                    output_json[key] = dxlinks[0]
-                else:
-                    output_json[key] = dxlinks
-            elif class_ == 'array:file':
-                output_json[key] = dxlinks
-            elif (class_ == 'file' and
-                  len(dxlinks) == 1):
-                output_json[key] = dxlinks[0]
+    def get_new_file_output_value(key, class_, dxlinks):
+        # Get the old value as a list, an empty list if the value
+        # does not exist yet.
+        orig_value_as_list = output_json.get(key, [])
+        if not isinstance(orig_value_as_list, list):
+            orig_value_as_list = [orig_value_as_list]
+        if class_ is None:
+            # Make it into an array if there are already values there
+            final_list = orig_value_as_list + dxlinks
+            if len(final_list) == 1:
+                return final_list[0]
             else:
-                report_error_and_exit("Type mismatch, key {} is of type {}, but has {} entries"
-                                      .format(key, class_, len(dxlinks)))
+                return final_list
+        elif class_ == 'array:file':
+            return orig_value_as_list + dxlinks
+        elif class_ == 'file' and len(dxlinks) == 1:
+            return dxlinks[0]
         else:
-            if class_ is None:
-                # we are guessing that the type is: file:array
-                output_json[key].extend(dxlinks)
-            elif (class_ == 'array:file' and
-                  isinstance(output_json[key], list)):
-                output_json[key].extend(dxlinks)
-            elif (class_ == 'file' and
-                  not isinstance(output_json[key], list) and
-                  len(dxlinks) == 1):
-                output_json[key] = dxlinks[0]
-            else:
-                report_error_and_exit("Type mismatch, key {} is of type {}, json={}, len(key)={} entries"
-                                      .format(key, class_, type(output_json[key]), len(dxlinks)))
+            report_error_and_exit("Type mismatch, key {} is of type {}, json={} num_dxlinks={}".
+                                  format(key, class_, type(output_json[key]), len(dxlinks)))
 
     # Add all the entries
     for key in subdir_recs:
@@ -352,7 +351,7 @@ def update_output_json(subdir_recs):
         class_ = None
         if 'class' in subdir_desc:
             class_ = subdir_desc['class']
-        add_rec_to_json(key, class_, dxlinks)
+        output_json[key] = get_new_file_output_value(key, class_, dxlinks)
 
     # write it back out
     with open(output_file, 'w') as fh:
@@ -389,7 +388,7 @@ for key in subdir_recs:
     for ddir in subdir_desc['child_dirs']:
         dfiles = deep_list(subdir_desc['path'], ddir)
         for dfile in dfiles:
-            rel_path = os.path.dirname(os.path.join(ddir, dfile))
+            rel_path = os.path.dirname(dfile)
             local_path = os.path.join(subdir_desc['path'], rel_path)
             to_upload.append(create_entry(subdir_desc,
                                           local_path,
