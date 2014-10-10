@@ -86,7 +86,6 @@ import os
 import math
 import sys
 import collections
-import textwrap
 import dxpy
 from dxpy.compat import environ
 from ..exceptions import DXError
@@ -102,7 +101,7 @@ def get_input_dir(expand_home_var=True):
     if expand_home_var:
         home_dir = os.environ.get('HOME')
     else:
-        home_dir="$HOME"
+        home_dir = "$HOME"
     idir = os.path.join(home_dir, 'in')
     return idir
 
@@ -118,7 +117,7 @@ def get_output_dir(expand_home_var=True):
     if expand_home_var:
         home_dir = os.environ.get('HOME')
     else:
-        home_dir="$HOME"
+        home_dir = "$HOME"
     odir = os.path.join(home_dir, 'out')
     return odir
 
@@ -255,10 +254,7 @@ def get_job_input_filenames(job_input_file):
             add_file(input_name, None, value)
 
     ## create a dictionary of the all non-file elements
-    rest_hash = {}
-    for input_name, value in job_input.iteritems():
-        if input_name not in files:
-            rest_hash[input_name] = value
+    rest_hash = {key: val for key, val in job_input.iteritems() if key not in files}
     return dirs, files, rest_hash
 
 def analyze_bash_vars(job_input_file):
@@ -316,43 +312,43 @@ def gen_bash_vars(job_input_file):
     file_key_descs, rest_hash = analyze_bash_vars(job_input_file)
 
     def string_of_elem(elem):
-        s = None
+        result = None
         if isinstance(elem, basestring):
-            s = elem
+            result = elem
         elif isinstance(elem, dxpy.DXFile):
-            s = json.dumps(dxpy.dxlink(elem))
+            result = json.dumps(dxpy.dxlink(elem))
         else:
-            s = json.dumps(elem)
-        return pipes.quote(s)
+            result = json.dumps(elem)
+        return pipes.quote(result)
 
     def string_of_value(val):
         if isinstance(val, list):
-            if len(val) > 1:
-                str = " ".join([string_of_elem(vitem) for vitem in val])
-                return "( {} )".format(str)
-            else:
-                return string_of_elem(val[0])
+            str = " ".join([string_of_elem(vitem) for vitem in val])
+            return "( {} )".format(str)
         else:
             return string_of_elem(val)
 
     all_keys = set()
     var_defs_hash = {}
-    def gen_text_line_and_name_collision(key, val:
+    def gen_text_line_and_name_collision(key, val):
         ''' In the absence of a name collision, create a line describing a bash variable.
         '''
         if key not in environ and key not in all_keys:
             all_keys.add(key)
             var_defs_hash[key] = val
         else:
-            sys.stderr.write(textwrap.fill("Creating environment variable ({}) would cause a name collision\n".format(key)))
+            sys.stderr.write(dxpy.utils.printing.fill(
+                "Creating environment variable ({}) would cause a name collision\n".format(key)))
 
+    # Processing non-file variables before the file variables. This priorities them,
+    # so that in case of name collisions, the file-variables will be dropped.
+    for key, desc in rest_hash.iteritems():
+        gen_text_line_and_name_collision(key, string_of_value(desc))
     for file_key, desc in file_key_descs.iteritems():
         gen_text_line_and_name_collision(file_key, string_of_value(desc['handler']))
         gen_text_line_and_name_collision(file_key + "_filename", string_of_value(desc['filename']))
         gen_text_line_and_name_collision(file_key + "_prefix", string_of_value(desc['prefix']))
         gen_text_line_and_name_collision(file_key + "_path", string_of_value(desc['path']))
-    for key, desc in rest_hash.iteritems():
-        gen_text_line_and_name_collision(key, string_of_value(desc))
 
     return var_defs_hash
 
