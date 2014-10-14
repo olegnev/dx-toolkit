@@ -11,6 +11,7 @@
   "outputSpec": [
     {"name": "genes", "class": "array:file"},
     {"name": "phenotypes", "class": "array:file"},
-    {"name": "report", "class": "array:file"}
+    {"name": "report", "class": "array:file"},
+    {"name": "helix", "class": "file"}
   ]
 }

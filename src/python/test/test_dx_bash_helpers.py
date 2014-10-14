@@ -229,7 +229,8 @@ class TestDXBashHelpers(DXTestCase):
                 raise "Error: key {} does not appear in the job output".format(out_param_name)
             dxlink_id_list = job_output[out_param_name]
             if not len(dxlink_id_list) == num_files:
-                raise "Error: key {} should have {} files, but has {}".format(out_param_name, num_files, len(dxlink_id_list))
+                raise Exception("Error: key {} should have {} files, but has {}".
+                                format(out_param_name, num_files, len(dxlink_id_list)))
 
         def verify_files_in_dir(path, expected_filenames, dxproj):
             ''' verify that a particular set of files resides in a directory '''
@@ -239,7 +240,8 @@ class TestDXBashHelpers(DXTestCase):
                 if not isinstance(handler, dxpy.DXFile):
                     continue
                 if handler.name not in expected_filenames:
-                    raise "Error: file {} should reside in directory {}".format(handler.name, path)
+                    raise Exception("Error: file {} should reside in directory {}".
+                                    format(handler.name, path))
 
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
             env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
@@ -264,13 +266,14 @@ class TestDXBashHelpers(DXTestCase):
             check_output_key(job_output, "genes", 8, dxproj)
             check_output_key(job_output, "phenotypes", 7, dxproj)
             check_output_key(job_output, "report", 1, dxproj)
+            check_output_key(job_output, "helix", 1, dxproj)
 
             verify_files_in_dir("/clue", ["X_1.txt", "X_2.txt", "X_3.txt"], dxproj)
             verify_files_in_dir("/hint", ["V_1.txt", "V_2.txt", "V_3.txt"], dxproj)
             verify_files_in_dir("/clue2", ["Y_1.txt", "Y_2.txt", "Y_3.txt"], dxproj)
             verify_files_in_dir("/hint2", ["Z_1.txt", "Z_2.txt", "Z_3.txt"], dxproj)
-            verify_files_in_dir("/", ["A.txt", "B.txt", "C.txt"], dxproj)
             verify_files_in_dir("/foo/bar", ["luke.txt"], dxproj)
+            verify_files_in_dir("/", ["A.txt", "B.txt", "C.txt", "num_chrom.txt"], dxproj)
 
 class TestDXBashHelpersBenchmark(DXTestCase):
 

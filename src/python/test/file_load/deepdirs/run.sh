@@ -30,16 +30,20 @@ main() {
         echo "ACGT_$i" > $phen_d/hint2/Z_$i.txt
     done
 
-    # single file
+    # nested hierarchy
     mkdir -p out/report/foo/bar
     echo "Luke, behind you!" > out/report/foo/bar/luke.txt
+
+    # single file
+    mkdir -p out/helix
+    echo "12345678" > out/helix/num_chrom.txt
 
     # hidden files, directories, and symbolic links. These should be skipped
     mkdir $gene_d/.hide
     echo "XYZ" > $gene_d/.hide/V.txt
     echo "1234" > $gene_d/.hidden_file
-    ln -s $phen_d/clue $phen_d/clue_symlink
-    ln -s $phen_d/hint $phen_d/hint_symlink
+    ln -s $gene_d/clue/X_1.txt $phen_d/clue_symlink
+    ln -s $gene_d/hint/V_1.txt $phen_d/hint_symlink
 
     dx-upload-all-outputs
 
@@ -56,6 +60,8 @@ main() {
     mv space/{C.txt,hint2,clue2} tmp/phenotypes
     mkdir -p tmp/report
     mv space/foo tmp/report/
+    mkdir -p tmp/helix
+    mv space/num_chrom.txt tmp/helix/
 
     # check that hidden files and symbolic links were skipped
     # the space directory should now be empty
