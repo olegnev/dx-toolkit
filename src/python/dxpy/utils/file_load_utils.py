@@ -299,15 +299,19 @@ def analyze_bash_vars(job_input_file):
 
 
 #
-# Note: pipes.quote() to be replaced with shlex.quote() in Python 3 (see http://docs.python.org/2/library/pipes.html#pipes.quote)
-# TODO: Detect and warn about collisions with essential environment variables
-def gen_bash_vars(job_input_file):
+# Note: pipes.quote() to be replaced with shlex.quote() in Python 3
+# (see http://docs.python.org/2/library/pipes.html#pipes.quote)
+#
+def gen_bash_vars(job_input_file, check_name_collision=True):
     """
     :param job_input_file: path to a JSON file describing the job inputs
+    :param check_name_collision: should we check for name collisions?
     :return: list of lines
     :rtype: list of strings
 
     Calculates a line for each shell variable to instantiate.
+    If *check_name_collision* is true, then detect and warn about
+    collisions with essential environment variables.
     """
     file_key_descs, rest_hash = analyze_bash_vars(job_input_file)
 
@@ -328,17 +332,19 @@ def gen_bash_vars(job_input_file):
         else:
             return string_of_elem(val)
 
-    all_keys = set()
     var_defs_hash = {}
     def gen_text_line_and_name_collision(key, val):
         ''' In the absence of a name collision, create a line describing a bash variable.
         '''
-        if key not in environ and key not in all_keys:
-            all_keys.add(key)
-            var_defs_hash[key] = val
+        if check_name_collision:
+            if key not in environ and key not in var_defs_hash:
+                var_defs_hash[key] = val
+            else:
+                sys.stderr.write(dxpy.utils.printing.fill(
+                    "Creating environment variable ({}) would cause a name collision".format(key))
+                                 + "\n")
         else:
-            sys.stderr.write(dxpy.utils.printing.fill(
-                "Creating environment variable ({}) would cause a name collision\n".format(key)))
+            var_defs_hash[key] = val
 
     # Processing non-file variables before the file variables. This priorities them,
     # so that in case of name collisions, the file-variables will be dropped.

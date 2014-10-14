@@ -99,6 +99,3 @@ cmp_string_arrays() {
 
     return 1
 }
-
-
-

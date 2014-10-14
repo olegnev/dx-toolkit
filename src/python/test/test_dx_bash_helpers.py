@@ -129,8 +129,8 @@ class TestDXBashHelpers(DXTestCase):
                            '-iil=6', '-iil=7', '-iil=8',
                            '-ixl=3.3', '-ixl=4.4', '-ixl=5.0',
                            '-ibl=true', '-ibl=false', '-ibl=true',
-                           '-isl=hello', '-isl=world', '-isl=next']
-#                           '-imisc={"hello": "world", "foo": true}']
+                           '-isl=hello', '-isl=world', '-isl=next',
+                           '-imisc={"hello": "world", "foo": true}']
             cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
