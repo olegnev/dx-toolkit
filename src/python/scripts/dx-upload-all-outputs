@@ -104,7 +104,7 @@ def report_error_and_exit(message):
     '''
     error_hash = {
         "error": {
-            "type": "AppError",
+            "type": "AppInternalError",
             "message": message
         }
     }
