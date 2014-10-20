@@ -45,9 +45,10 @@ If an input is an array of files, then all files will be placed into
 numbered subdirectories under a parent directory named for the
 input. For example, if the input key is FOO, and the inputs are {A, B,
 C}.vcf then, the directory structure will be:
-    $HOME/in/FOO/00/A.vcf
-                 01/B.vcf
-                 02/C.vcf
+
+    $HOME/in/FOO/0/A.vcf
+                 1/B.vcf
+                 2/C.vcf
 '''
 
 # Parse the command line
