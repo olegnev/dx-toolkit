@@ -53,7 +53,7 @@ structure will be:
 
     $HOME/in/FOO/00/A.vcf
                  ...
-                 12/L.vcf
+                 11/L.vcf
 
 This allows using shell globbing (FOO/*/*.vcf) to get all the files in the input
 order.
