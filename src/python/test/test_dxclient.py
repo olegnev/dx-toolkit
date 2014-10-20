@@ -929,6 +929,37 @@ class TestDXClientUploadDownload(DXTestCase):
             run('dx download ' + file_id + ' -o ' + output_path)
             run('cmp ' + output_path + ' ' + fd.name)
 
+    @unittest.skipUnless(testutil.TEST_ENV,
+                         'skipping test that would clobber your local environment')
+    def test_dx_cp_no_env(self):
+        ''' Try to copy a file when the context is empty.
+        '''
+        def create_file():
+            testdir = tempfile.mkdtemp()
+            with tempfile.NamedTemporaryFile(dir=testdir) as fd:
+                fd.write("foo")
+                fd.flush()
+                file_id = run("dx upload " + fd.name + " --brief --wait").strip()
+                self.assertTrue(file_id.startswith('file-'))
+                return file_id
+
+        # Unset environment
+        def unset_environment():
+            from dxpy.utils.env import write_env_var
+            write_env_var('DX_PROJECT_CONTEXT_ID', None)
+            del os.environ['DX_PROJECT_CONTEXT_ID']
+            self.assertNotIn('DX_PROJECT_CONTEXT_ID', run('dx env --bash'))
+
+        file_id = create_file()
+        unset_environment()
+
+        # Copy the file to a new project.
+        # This should work even though the context is not set.
+        with temporary_project('TestDXClientUploadDownload.test_app1 temporary project') as dxproj:
+            trg_proj_id = dxproj.get_id()
+            run('dx cp ' + file_id + ' ' + trg_proj_id)
+
+
     def test_dx_make_download_url(self):
         testdir = tempfile.mkdtemp()
         output_testdir = tempfile.mkdtemp()
