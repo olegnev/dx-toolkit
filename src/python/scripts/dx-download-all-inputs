@@ -28,16 +28,13 @@ from dxpy.utils.printing import fill, refill_paragraphs, BOLD, RED
 description = BOLD('Note') + ''': this is a utility for use by bash apps
 running in the DNAnexus Platform.
 
-This utility is ''' + RED(BOLD('EXPERIMENTAL')) + ''' and its
-functionality is subject to change at any time without notice.
-
 Downloads all files that were supplied as inputs to the app.  By
 convention, if an input parameter "FOO" has value
 
     {"$dnanexus_link": "file-xxxx"}
 
 and filename INPUT.TXT, then the linked file will be downloaded into the
-path
+path:
 
     $HOME/in/FOO/INPUT.TXT
 
