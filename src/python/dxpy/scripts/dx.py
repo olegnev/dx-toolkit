@@ -1104,7 +1104,22 @@ def cp(args):
                 parser.exit(1, fill('Error: A source path and the destination path resolved to the same project or container.  Please specify different source and destination containers, e.g.') + '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
 
         if src_proj is None:
-            parser.exit(1, fill('Error: A source project must be specified or a current project set in order to clone objects between projects') + '\n')
+            # The source project is unspecified. Previously we reported an error immediately, like this:
+            # parser.exit(1, fill('Error: A source project must be specified or a current project set in order to clone objects between projects') + '\n')
+            #
+            # Improvement:
+            # search for a file with that ID in any project, use the first file found.
+            print('A source project must be specified or a current project set in order to clone objects between projects, trying to look for the file-id.');
+            for fid in [result['id'] for result in src_results]:
+                proj_list = dxpy.api.file_list_projects(object_id)
+                import pprint
+                pprint.pprint(proj_list)
+                src_proj=proj_list[0]
+                # cases to consider:
+                #   1) ignore the -same- project
+                #   2) Nothing is found
+                #   3) Multiple results are found
+                # What if this is a folder, should we look for it too? Is it the same API?
 
         if src_results is None:
             src_folders.append(src_folderpath)
