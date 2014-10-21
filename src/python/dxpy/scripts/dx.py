@@ -1110,6 +1110,7 @@ def cp(args):
             # Improvement:
             # search for a file with that ID in any project, use the first file found.
             #for result in src_results:
+            # This must be a hash-id (file-xxxx), so, it cannot be a folder.
             import pprint
             pprint.pprint(src_results)
             # cases to consider:
