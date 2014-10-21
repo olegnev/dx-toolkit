@@ -959,7 +959,6 @@ class TestDXClientUploadDownload(DXTestCase):
             trg_proj_id = dxproj.get_id()
             run('dx cp ' + file_id + ' ' + trg_proj_id)
 
-
     def test_dx_make_download_url(self):
         testdir = tempfile.mkdtemp()
         output_testdir = tempfile.mkdtemp()

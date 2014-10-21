@@ -1089,8 +1089,9 @@ def cp(args):
 
     if len(args.sources) == 0:
         parser.exit(1, 'No sources provided to copy to another project\n')
-    src_objects = []
-    src_folders = []
+    exists = []  # list of objects that already exist in the target
+    src_objects_dict = collections.defaultdict(list)  # source objects per project
+    src_folders_dict = collections.defaultdict(list)  # source folders per project
     for source in args.sources:
         src_proj, src_folderpath, src_results = try_call(resolve_existing_path,
                                                          source,
@@ -1104,6 +1105,7 @@ def cp(args):
                 parser.exit(1, fill('Error: A source path and the destination path resolved to the same project or container.  Please specify different source and destination containers, e.g.') + '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
 
         if src_proj is None:
+            # Difficult case: the source project is unspecified.
             # The source project is unspecified. Previously we reported an error immediately, like this:
             # parser.exit(1, fill('Error: A source project must be specified or a current project set in order to clone objects between projects') + '\n')
             #
@@ -1112,27 +1114,47 @@ def cp(args):
             #for result in src_results:
             # This must be a hash-id (file-xxxx), so, it cannot be a folder.
             import pprint
-            pprint.pprint(src_results)
-            # cases to consider:
-            #   1) ignore if the object is already in the target project
-            #   2) Nothing is found
-            #   3) Multiple results are found
-            parser.exit(1, fill('Error: A source project must be specified or a current project set in order to clone objects between projects') + '\n')
-
-        if src_results is None:
-            src_folders.append(src_folderpath)
+            sys.stderr.write("num results={}\n".format(len(src_results)))
+            for result in src_results:
+                sys.stderr.write("result={}\n".format(pprint.pformat(result)))
+                sys.stderr.flush()
+                unspec_src_proj = result['describe']['project']
+                if unspec_src_proj == dest_proj:
+                    # the object already exists in target project
+                    exists += result['id']
+                else:
+                    src_objects_dict[unspec_src_proj].append(result['id'])
+            # Question: is it not possible to get a folder?
         else:
-            src_objects += [result['id'] for result in src_results]
+            # Easy case: the source project is known
+            if src_results is None:
+                src_folders[src_proj].append(src_folderpath)
+            else:
+                src_objects[src_proj] += [result['id'] for result in src_results]
+
     try:
-        exists = dxpy.DXHTTPRequest('/' + src_proj + '/clone',
-                                    {"objects": src_objects,
-                                     "folders": src_folders,
-                                     "project": dest_proj,
-                                     "destination": dest_path})['exists']
-        if len(exists) > 0:
-            print(fill('The following objects already existed in the destination container and were left alone:') + '\n ' + '\n '.join(exists))
+        # copy all the objects
+        for proj_name, objects in src_objects_dict.iteritems():
+            exists += dxpy.DXHTTPRequest('/' + proj_name + '/clone',
+                                         {"objects": objects,
+                                          "folders": [],
+                                          "project": dest_proj,
+                                          "destination": dest_path})['exists']
+
+        # copy all the folders
+        for proj_name, folders in src_folders_dict.iteritems():
+            exists += dxpy.DXHTTPRequest('/' + proj_name + '/clone',
+                                         {"objects": [],
+                                          "folders": folders,
+                                          "project": dest_proj,
+                                          "destination": dest_path})['exists']
     except:
         err_exit()
+
+    if len(exists) > 0:
+        print(fill('The following objects already existed in the destination container and were left alone:') +
+              '\n ' + '\n '.join(exists))
+
 
 def tree(args):
     project, folderpath, _none = try_call(resolve_existing_path, args.path,
