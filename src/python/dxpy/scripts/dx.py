@@ -1113,11 +1113,11 @@ def cp(args):
             # search for a file with that ID in any project, use the first file found.
             #for result in src_results:
             # This must be a hash-id (file-xxxx), so, it cannot be a folder.
-            import pprint
-            sys.stderr.write("num results={}\n".format(len(src_results)))
+            #import pprint
+            #sys.stderr.write("num results={}\n".format(len(src_results)))
             for result in src_results:
-                sys.stderr.write("result={}\n".format(pprint.pformat(result)))
-                sys.stderr.flush()
+                #sys.stderr.write("result={}\n".format(pprint.pformat(result)))
+                #sys.stderr.flush()
                 unspec_src_proj = result['describe']['project']
                 if unspec_src_proj == dest_proj:
                     # the object already exists in target project
@@ -1128,9 +1128,9 @@ def cp(args):
         else:
             # Easy case: the source project is known
             if src_results is None:
-                src_folders[src_proj].append(src_folderpath)
+                src_folders_dict[src_proj].append(src_folderpath)
             else:
-                src_objects[src_proj] += [result['id'] for result in src_results]
+                src_objects_dict[src_proj] += [result['id'] for result in src_results]
 
     try:
         # copy all the objects
