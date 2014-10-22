@@ -1011,6 +1011,49 @@ def mv(args):
 
 # ONLY for between DIFFERENT projects.  Will exit fatally otherwise.
 def cp(args):
+    def calc_source_files_and_folders(dest_proj, sources, all_flag):
+        ''' Figure out the set of source objects and folders.
+        Each object could come from a different project. This is why we accumulate
+        objects and folders per source project.
+        '''
+        exists = []  # list of objects that already exist in the target
+        src_objects_dict = collections.defaultdict(list)  # source objects per project
+        src_folders_dict = collections.defaultdict(list)  # source folders per project
+        for source in sources:
+            src_proj, src_folderpath, src_results = try_call(resolve_existing_path,
+                                                             source,
+                                                             allow_mult=True, all_mult=all_flag)
+        if src_results is None:
+            if src_proj is not None:
+                src_folders_dict[src_proj].append(src_folderpath)
+            else:
+                parser.exit(1, fill('Error: No matching object found for ' + source) + '\n')
+        else:
+            if src_proj is None:
+                # Note that the source project --- could --- be None.
+                # The user does not have to provide it
+                pass
+
+            if src_proj == dest_proj:
+                if is_hashid(source):
+                    # This is the only case in which the source project is
+                    # purely assumed, so give a better error message.
+                    parser.exit(1, fill('Error: You must specify a source project for ' + source) + '\n')
+                else:
+                    parser.exit(1, fill('Error: A source path and the destination path resolved to the same project or container.  Please specify different source and destination containers, e.g.') + '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
+
+            for result in src_results:
+                #sys.stderr.write("result={}\n".format(pprint.pformat(result)))
+                #sys.stderr.flush()
+                unspec_src_proj = result['describe']['project']
+                if unspec_src_proj == dest_proj:
+                    # the object already exists in target project
+                    exists += result['id']
+                else:
+                    src_objects_dict[unspec_src_proj].append(result['id'])
+        return exists, src_objects_dict, src_folders_dict
+
+    print("phase 0")
     dest_proj, dest_path, _none = try_call(resolve_path,
                                            args.destination, 'folder')
     try:
@@ -1019,6 +1062,7 @@ def cp(args):
         dx_dest = dxpy.get_handler(dest_proj)
         dx_dest.list_folder(folder=dest_path, only='folders')
     except:
+        print("0:1")
         if dest_path is None:
             parser.exit(1, 'Cannot copy to a hash ID\n')
         # Destination folder path is new => renaming
@@ -1047,6 +1091,7 @@ def cp(args):
                                                    args.sources[0],
                                                    allow_mult=True, all_mult=args.all)
 
+        print("0:2")
         if src_proj == dest_proj:
             if is_hashid(args.sources[0]):
                 # This is the only case in which the source project is
@@ -1057,6 +1102,7 @@ def cp(args):
 
         if src_results is None:
             try:
+                print("0:src_results is None")
                 contents = dxpy.api.project_list_folder(src_proj,
                                                         {"folder": src_path, "includeHidden": True})
                 dxpy.api.project_new_folder(dest_proj, {"folder": dest_path})
@@ -1087,53 +1133,13 @@ def cp(args):
             except:
                 err_exit()
 
+    print("phase 2")
     if len(args.sources) == 0:
         parser.exit(1, 'No sources provided to copy to another project\n')
-    exists = []  # list of objects that already exist in the target
-    src_objects_dict = collections.defaultdict(list)  # source objects per project
-    src_folders_dict = collections.defaultdict(list)  # source folders per project
-    for source in args.sources:
-        src_proj, src_folderpath, src_results = try_call(resolve_existing_path,
-                                                         source,
-                                                         allow_mult=True, all_mult=args.all)
-        if src_proj == dest_proj:
-            if is_hashid(source):
-                # This is the only case in which the source project is
-                # purely assumed, so give a better error message.
-                parser.exit(1, fill('Error: You must specify a source project for ' + source) + '\n')
-            else:
-                parser.exit(1, fill('Error: A source path and the destination path resolved to the same project or container.  Please specify different source and destination containers, e.g.') + '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
-
-        if src_proj is None:
-            # Difficult case: the source project is unspecified.
-            # The source project is unspecified. Previously we reported an error immediately, like this:
-            # parser.exit(1, fill('Error: A source project must be specified or a current project set in order to clone objects between projects') + '\n')
-            #
-            # Improvement:
-            # search for a file with that ID in any project, use the first file found.
-            #for result in src_results:
-            # This must be a hash-id (file-xxxx), so, it cannot be a folder.
-            #import pprint
-            #sys.stderr.write("num results={}\n".format(len(src_results)))
-            for result in src_results:
-                #sys.stderr.write("result={}\n".format(pprint.pformat(result)))
-                #sys.stderr.flush()
-                unspec_src_proj = result['describe']['project']
-                if unspec_src_proj == dest_proj:
-                    # the object already exists in target project
-                    exists += result['id']
-                else:
-                    src_objects_dict[unspec_src_proj].append(result['id'])
-            # Question: is it not possible to get a folder?
-        else:
-            # Easy case: the source project is known
-            if src_results is None:
-                src_folders_dict[src_proj].append(src_folderpath)
-            else:
-                src_objects_dict[src_proj] += [result['id'] for result in src_results]
-
+    exists, src_objects_dict, src_folders_dict = calc_source_files_and_folders(dest_proj, args.sources, args.all)
     try:
         # copy all the objects
+        print("2: copy all objects")
         for proj_name, objects in src_objects_dict.iteritems():
             exists += dxpy.DXHTTPRequest('/' + proj_name + '/clone',
                                          {"objects": objects,
@@ -1142,6 +1148,7 @@ def cp(args):
                                           "destination": dest_path})['exists']
 
         # copy all the folders
+        print("2: copy all folders")
         for proj_name, folders in src_folders_dict.iteritems():
             exists += dxpy.DXHTTPRequest('/' + proj_name + '/clone',
                                          {"objects": [],
