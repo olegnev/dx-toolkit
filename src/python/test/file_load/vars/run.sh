@@ -13,13 +13,13 @@ main() {
     check_array_var_defined "$genes"
 
     # TODO: uncomment this section and remove this line after the next dx-toolkit deployment"
-    #check_var_defined "$seq1_filename" "A.txt"
+    #check_var_defined "$seq1_basename" "A.txt"
     #check_var_defined "$seq1_path" "\$HOME/in/seq1/A.txt"
     #check_var_defined "$seq1_prefix" "A"
-    #check_var_defined "$seq2_filename" "A.txt"
+    #check_var_defined "$seq2_basename" "A.txt"
     #check_var_defined "$seq2_path" "\$HOME/in/seq2/A.txt"
     #check_var_defined "$seq2_prefix" "A"
-    #check_array_var_defined "$genes_filename" "( A.txt A.txt )"
+    #check_array_var_defined "$genes_basename" "( A.txt A.txt )"
     #check_array_var_defined "$genes_path" "( \$HOME/in/genes/A.txt \$HOME/in/genes/A.txt )"
     #check_array_var_defined "$genes_prefix" "( A A )"
 

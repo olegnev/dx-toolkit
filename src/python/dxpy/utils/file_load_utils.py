@@ -282,7 +282,7 @@ def analyze_bash_vars(job_input_file):
     '''
     _, file_entries, rest_hash = get_job_input_filenames(job_input_file)
     def factory():
-        return {'handler': [], 'filename': [],  'prefix': [], 'path': []}
+        return {'handler': [], 'basename': [],  'prefix': [], 'path': []}
     file_key_descs = collections.defaultdict(factory)
     rel_home_dir = get_input_dir(expand_home_var=False)
     for key, entries in file_entries.iteritems():
@@ -292,7 +292,7 @@ def analyze_bash_vars(job_input_file):
             prefix = os.path.splitext(basename)[0]
             k_desc = file_key_descs[key]
             k_desc['handler'].append(entry['handler'])
-            k_desc['filename'].append(basename)
+            k_desc['basename'].append(basename)
             k_desc['prefix'].append(prefix)
             k_desc['path'].append(os.path.join(rel_home_dir, filename))
     return file_key_descs, rest_hash
@@ -352,7 +352,7 @@ def gen_bash_vars(job_input_file, check_name_collision=True):
         gen_text_line_and_name_collision(key, string_of_value(desc))
     for file_key, desc in file_key_descs.iteritems():
         gen_text_line_and_name_collision(file_key, string_of_value(desc['handler']))
-        gen_text_line_and_name_collision(file_key + "_filename", string_of_value(desc['filename']))
+        gen_text_line_and_name_collision(file_key + "_basename", string_of_value(desc['basename']))
         gen_text_line_and_name_collision(file_key + "_prefix", string_of_value(desc['prefix']))
         gen_text_line_and_name_collision(file_key + "_path", string_of_value(desc['path']))
 
