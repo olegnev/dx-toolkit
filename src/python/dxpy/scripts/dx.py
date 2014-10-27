@@ -139,11 +139,11 @@ from dxpy.utils.printing import (CYAN, BLUE, YELLOW, GREEN, RED, WHITE, UNDERLIN
                                  DNANEXUS_X, set_colors, set_delimiter, get_delimiter, DELIMITER, fill,
                                  tty_rows, tty_cols, pager)
 from dxpy.utils.pretty_print import format_tree, format_table
-from dxpy.utils.resolver import (pick, paginate_and_pick, is_hashid, is_data_obj_id, is_container_id, is_job_id, is_analysis_id,
-                                 get_last_pos_of_char, resolve_container_id_or_name, resolve_path,
+from dxpy.utils.resolver import (pick, paginate_and_pick, is_hashid, is_data_obj_id, is_container_id, is_job_id,
+                                 is_analysis_id, get_last_pos_of_char, resolve_container_id_or_name, resolve_path,
                                  resolve_existing_path, get_app_from_path, resolve_app, get_exec_handler,
-                                 cached_project_names, split_unescaped,
-                                 ResolutionError, get_first_pos_of_char, resolve_to_objects_or_project)
+                                 split_unescaped, ResolutionError, get_first_pos_of_char,
+                                 resolve_to_objects_or_project)
 from dxpy.utils.completer import (path_completer, DXPathCompleter, DXAppCompleter, LocalCompleter,
                                   ListCompleter, MultiCompleter)
 from dxpy.utils.describe import (print_data_obj_desc, print_desc, print_ls_desc, get_ls_l_desc, print_ls_l_desc,
@@ -470,13 +470,15 @@ def prompt_for_env_var(prompt_str, env_var_str):
         elif default is not None:
             return default
 
+
 def pick_and_set_project(args):
     try:
         result_generator = dxpy.find_projects(describe=True,
                                               name=args.name, name_mode='glob',
                                               level=('VIEW' if args.public else args.level),
                                               explicit_perms=(not args.public if not args.public else None),
-                                              public=(args.public if args.public else None))
+                                              public=(args.public if args.public else None),
+                                              first_page_size=10)
     except:
         err_exit('Error while listing available projects')
     any_results = False
@@ -2413,30 +2415,29 @@ def find_data(args):
     except:
         err_exit()
 
+
 def find_projects(args):
     try_call(process_find_by_property_args, args)
     try:
-        results = list(dxpy.find_projects(name=args.name, name_mode='glob',
-                                          properties=args.properties, tags=args.tag,
-                                          level=('VIEW' if args.public else args.level),
-                                          describe=(not args.brief),
-                                          explicit_perms=(not args.public if not args.public else None),
-                                          public=(args.public if args.public else None)))
+        results = dxpy.find_projects(name=args.name, name_mode='glob',
+                                     properties=args.properties, tags=args.tag,
+                                     level=('VIEW' if args.public else args.level),
+                                     describe=(not args.brief),
+                                     explicit_perms=(not args.public if not args.public else None),
+                                     public=(args.public if args.public else None))
         if args.json:
-            print(json.dumps(results, indent=4))
+            print(json.dumps(list(results), indent=4))
             return
         if args.brief:
             for result in results:
                 print(result['id'])
-            return
         else:
             for result in results:
-                cached_project_names[result['describe']['name']] = result['id']
-                print(result["id"] + DELIMITER(" : ") + result['describe']['name'] + DELIMITER(' (') + result["level"] + DELIMITER(')'))
-        print("")
-        return [result["id"] for result in results]
+                print(result["id"] + DELIMITER(" : ") + result['describe']['name'] +
+                      DELIMITER(' (') + result["level"] + DELIMITER(')'))
     except:
         err_exit()
+
 
 def find_apps(args):
     def maybe_x(result):
