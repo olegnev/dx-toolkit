@@ -155,8 +155,7 @@ class TestDXCp(DXTestCase):
             run("dx cp {p1}:/foo {p2}:/".format(p1=projID1, p2=projID2))
             run("dx cp {p1}:/foo {p2}:/".format(p1=projID1, p2=projID2))
 
-        # Should and does fail.
-        # However, it causes a wierd error message:
+        # Passes, but gives a wierd error message:
         # dx cp project-BV80zyQ0Ffb7fj64v03fffqX:/foo/XX.txt  project-BV80vzQ0P9vk785K1GgvfZKv:/foo/XX.txt
         # The following objects already existed in the destination container and were not copied:
         #   [
