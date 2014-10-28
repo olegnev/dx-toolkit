@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2013-2014 DNAnexus, Inc.
+# Copyright (C) 2014 DNAnexus, Inc.
 #
 # This file is part of dx-toolkit (DNAnexus platform client libraries).
 #
@@ -29,8 +29,9 @@ from dxpy.scripts import dx_build_app
 from dxpy_testutil import DXTestCase, check_output, temporary_project, select_project
 import dxpy_testutil as testutil
 from dxpy.packages import requests
-from dxpy.exceptions import DXAPIError, EXPECTED_ERR_EXIT_STATUS
+from dxpy.exceptions import DXAPIError
 from dxpy.compat import str, sys_encoding
+
 
 @contextmanager
 def chdir(dirname=None):
@@ -48,79 +49,118 @@ def run(command, **kwargs):
     print(output)
     return output
 
+# assert_subprocess_failure
+
+
+# Create a random file. Return the file-id, and filename.
+def create_file_in_project(trg_proj_id):
+    testdir = tempfile.mkdtemp()
+    with tempfile.NamedTemporaryFile(dir=testdir) as fd:
+        fd.write("foo")
+        fd.flush()
+        file_id = run("dx upload {fname} --path {trg_proj} --brief --wait ".
+                      format(trg_proj=trg_proj_id, fname=fd.name)).strip()
+        return file_id, os.path.basename(fd.name)
+
+def create_proj():
+    project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
+    proj_id = run("dx new project {name} --brief".format(name=project_name)).strip()
+    return proj_id
+
+def rm_project(projID):
+    run("dx rmproject -y {p1}".format(p1=projID))
+
+
 class TestDXCp(DXTestCase):
-    def test_dx_cp_2(self):
+    # General question: a file can be specified by a name, or file-id.
+    # How does that effect the cases below?
+    #
+    # list of test cases, that should work on the current implementation.
+    #   files
+    #     create new file with the same name in the target
+    #       dx cp  proj-1111:/file-1111   proj-2222:/
+    #     copy and rename
+    #       dx cp  proj-1111:/file-1111   proj-2222:/file-2222
+    #     multiple arguments
+    #       dx cp  proj-1111:/file-1111 proj-2222:/file-2222 proj-3333:/
+    #   folders
+    #     copy recursively
+    #       cp  proj-1111:/folder-xxxx  proj-2222:/
+    #     what is supposed to happen here?
+    #       cp  proj-1111:/folder-xxxx  proj-2222:/folder-xxxx
+    #
+    # Two new
+    def test_legacy(self):
         print("Starting")
-        def create_file_in_project(trg_proj_id):
-            testdir = tempfile.mkdtemp()
-            with tempfile.NamedTemporaryFile(dir=testdir) as fd:
-                fd.write("foo")
-                fd.flush()
-                file_id = run("dx upload {fname} --path {trg_proj} --brief --wait ".
-                              format(trg_proj=trg_proj_id, fname=fd.name)).strip()
-            return file_id
 
-        # setup two projects, source, and target
-        project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
-        proj_src = run("dx new project {name} --brief".format(name=project_name)).strip()
-        project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
-        proj_trg = run("dx new project {name} --brief".format(name=project_name)).strip()
+        # setup two projects
+        projID1 = create_proj()
+        projID2 = create_proj()
 
-        print("copying files 1")
-        for i in range(1,4):
-            file_id = create_file_in_project(proj_src)
-            run("dx cp {f} {p}".format(f=file_id, p=proj_trg))
+        # create new file with the same name in the target
+        #    dx cp  proj-1111:/file-1111   proj-2222:/
+        def file_with_same_name():
+            file_id, _ = create_file_in_project(projID1)
+            run("dx cp {p1}:/{f} {p2}".format(f=file_id, p1=projID1, p2=projID2))
 
-        # make sure all the files were copied
-        listing_proj1 = run("dx ls --brief {p}".format(p=proj_src))
-        listing_proj2 = run("dx ls --brief {p}".format(p=proj_trg))
-        self.assertEqual(listing_proj1, listing_proj2)
+            # make sure the file was copied
+            listing_proj1 = run("dx ls --brief {p}".format(p=projID1))
+            listing_proj2 = run("dx ls --brief {p}".format(p=projID2))
+            self.assertEqual(listing_proj1, listing_proj2)
 
-        # create including target path
-        print("copying files to a directory")
-        run("dx mkdir {p}:/foo".format(p=proj_trg))
-        for i in range(1,4):
-            file_id = create_file_in_project(proj_src)
-            run("dx cp {p1}:/{f} {p2}:/foo/".format(p1=proj_src, f=file_id, p2=proj_trg))
+        # copy and rename
+        #   dx cp  proj-1111:/file-1111   proj-2222:/file-2222
+        def cp_rename():
+            file_id, basename = create_file_in_project(projID1)
+            run("dx cp {p1}:/{f1} {p2}:/{f2}".format(f1=basename, f2="AAA.txt", p1=projID1, p2=projID2))
 
-        # TODO:
-        #  destination folder does not exist
-        #     cp  X  Y:/
+        # multiple arguments
+        #   dx cp  proj-1111:/file-1111 proj-2222:/file-2222 proj-3333:/
+        def multiple_args():
+            _, fname1 = create_file_in_project(projID1)
+            _, fname2 = create_file_in_project(projID1)
+            _, fname3 = create_file_in_project(projID1)
+            run("dx cp {p1}:/{f1} {p1}:/{f2} {p1}:/{f3} {p2}:/".format(f1=fname1, f2=fname2, f3=fname3, p1=projID1, p2=projID2))
 
         # copy an entire directory
-        print("copying files 2")
-        run("dx cp {p1}:/foo {p2}:/clue".format(p1=proj_trg, p2=proj_src))
+        def cp_dir():
+            run("dx mkdir {p}:/foo".format(p=projID1))
+            run("dx cp {p1}:/foo {p2}:/".format(p1=projID1, p2=projID2))
+
+        file_with_same_name()
+        cp_rename()
+        multiple_args()
+        cp_dir()
+
+        # create including target path
+        # print("copying files to a directory")
+        # run("dx mkdir {p}:/foo".format(p=projID2))
+        # file_id, _ = create_file_in_project(projID1)
+        # run("dx cp {p1}:/{f} {p2}:/foo/".format(p1=projID1, f=file_id, p2=projID2))
 
         #cleanup
-        run("dx rmproject -y {p1} {p2}".format(p1=proj_src, p2=proj_trg))
+        rm_project(projID1)
+        rm_project(projID2)
 
+    # This case did not work before
     def test_dx_cp_found_in_other_project(self):
         ''' Copy a file-id, where the file is not located in the default project-id.
 
         Main idea: create projects A and B. Create a file in A, and copy it to project B,
         -without- specifying a source project.
         '''
-        def create_file(trg_proj_id):
-            testdir = tempfile.mkdtemp()
-            with tempfile.NamedTemporaryFile(dir=testdir) as fd:
-                fd.write("foo")
-                fd.flush()
-                file_id = run("dx upload {fname} --path {trg_proj} --brief --wait ".
-                              format(trg_proj=projID1, fname=fd.name)).strip()
-            return file_id
+        projID1 = create_proj()
+        projID2 = create_proj()
 
-        project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
-        projID1 = run("dx new project {name} --brief".format(name=project_name)).strip()
-        project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
-        projID2 = run("dx new project {name} --brief".format(name=project_name)).strip()
-
-        file_id = create_file(projID1)
+        file_id, _ = create_file_in_project(projID1)
         run('dx cp ' + file_id + ' ' + projID2)
 
         #cleanup
-        run("dx rmproject -y {p1} {p2}".format(p1=projID1, p2=projID2))
+        rm_project(projID1)
+        rm_project(projID2)
 
 
+    # This case did not work before
     @unittest.skipUnless(testutil.TEST_ENV,
                          'skipping test that would clobber your local environment')
     def test_dx_cp_no_env(self):
@@ -142,9 +182,12 @@ class TestDXCp(DXTestCase):
 
         # Copy the file to a new project.
         # This should work even though the context is not set.
-        project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
-        projID = run("dx new project {name} --brief".format(name=project_name)).strip()
+        projID = create_proj()
         run('dx cp ' + file_id + ' ' + projID)
+
+        #cleanup
+        rm_project(projID)
+
 
 if __name__ == '__main__':
     if 'DXTEST_FULL' not in os.environ:
