@@ -49,9 +49,6 @@ def run(command, **kwargs):
     print(output)
     return output
 
-# assert_subprocess_failure
-
-
 # Create a random file. Return the file-id, and filename.
 def create_file_in_project(trg_proj_id):
     testdir = tempfile.mkdtemp()
@@ -60,6 +57,15 @@ def create_file_in_project(trg_proj_id):
         fd.flush()
         file_id = run("dx upload {fname} --path {trg_proj} --brief --wait ".
                       format(trg_proj=trg_proj_id, fname=fd.name)).strip()
+        return file_id, os.path.basename(fd.name)
+
+def create_file_in_project_folder(trg_proj_id, path):
+    testdir = tempfile.mkdtemp()
+    with tempfile.NamedTemporaryFile(dir=testdir) as fd:
+        fd.write("foo")
+        fd.flush()
+        file_id = run("dx upload {fname} --path {trg_proj}:{path} --brief --wait ".
+                      format(trg_proj=trg_proj_id, fname=fd.name, path=path)).strip()
         return file_id, os.path.basename(fd.name)
 
 def create_proj():
@@ -127,20 +133,57 @@ class TestDXCp(DXTestCase):
             run("dx mkdir {p}:/foo".format(p=projID1))
             run("dx cp {p1}:/foo {p2}:/".format(p1=projID1, p2=projID2))
 
-        file_with_same_name()
-        cp_rename()
-        multiple_args()
-        cp_dir()
+        # Wierd error code:
+        #   This part makes sense:
+        #     InvalidState: If cloned, a folder would conflict with the route of an existing folder.
+        #   This does not:
+        #     Successfully cloned from project: None, code 422
+        #
+        # Note: causes an error, we need to catch it.
+        # Hint from Phil: assert_subprocess_failure
+        def copy_empty_folder_on_existing_folder():
+            run("dx mkdir {p}:/foo".format(p=projID1))
+            run("dx mkdir {p}:/foo".format(p=projID2))
+            run("dx cp {p1}:/foo {p2}:/".format(p1=projID1, p2=projID2))
 
-        # create including target path
-        # print("copying files to a directory")
-        # run("dx mkdir {p}:/foo".format(p=projID2))
-        # file_id, _ = create_file_in_project(projID1)
-        # run("dx cp {p1}:/{f} {p2}:/foo/".format(p1=projID1, f=file_id, p2=projID2))
+        # Should and does fail.
+        # TODO: catch the error
+        def copy_folder_on_existing_folder():
+            run("dx mkdir {p}:/foo".format(p=projID1))
+            fileID1, _ = create_file_in_project_folder(projID1, "/foo")
+            fileID2, _ = create_file_in_project_folder(projID2, "/foo")
+            run("dx cp {p1}:/foo {p2}:/".format(p1=projID1, p2=projID2))
+            run("dx cp {p1}:/foo {p2}:/".format(p1=projID1, p2=projID2))
+
+        # Should and does fail.
+        # However, it causes a wierd error message:
+        # dx cp project-BV80zyQ0Ffb7fj64v03fffqX:/foo/XX.txt  project-BV80vzQ0P9vk785K1GgvfZKv:/foo/XX.txt
+        # The following objects already existed in the destination container and were not copied:
+        #   [
+        #   "
+        #   f
+        #   i
+        #   l
+        #   ...
+        def copy_overwrite_wierd_error():
+            fileID1, fname1 = create_file_in_project(projID1)
+            run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=projID1, f=fname1, p2=projID2))
+            run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=projID1, f=fname1, p2=projID2))
+
+        #file_with_same_name()
+        #cp_rename()
+        #multiple_args()
+        #cp_#dir()
+        #copy_empty_folder_on_existing_folder()
+        # copy_folder_on_existing_folder()
+        copy_overwrite_wierd_error()
 
         #cleanup
         rm_project(projID1)
         rm_project(projID2)
+
+        ## wierd error reports:
+        #  copy a folder, where one already exists
 
     # This case did not work before
     def test_dx_cp_found_in_other_project(self):
