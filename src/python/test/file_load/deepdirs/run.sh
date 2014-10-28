@@ -50,8 +50,9 @@ main() {
     #  Check that directory structure was copied
     #  correctly to the project space
     mkdir space
-    dx download -o space -f --recursive "/*"
-
+    pushd space
+    dx download --overwrite --recursive "/"
+    popd
     mkdir tmp
     mkdir tmp/genes
     mv space/{A.txt,B.txt,hint,clue} tmp/genes/
