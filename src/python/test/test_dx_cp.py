@@ -187,8 +187,6 @@ class TestDXCp(DXTestCase):
         rm_project(projID1)
         rm_project(projID2)
 
-        ## wierd error reports:
-        #  copy a folder, where one already exists
 
     # This case did not work before
     def test_dx_cp_found_in_other_project(self):
