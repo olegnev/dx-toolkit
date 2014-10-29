@@ -187,7 +187,6 @@ class TestDXCp(DXTestCase):
         rm_project(projID1)
         rm_project(projID2)
 
-
     # This case did not work before
     def test_dx_cp_found_in_other_project(self):
         ''' Copy a file-id, where the file is not located in the default project-id.
@@ -204,7 +203,6 @@ class TestDXCp(DXTestCase):
         #cleanup
         rm_project(projID1)
         rm_project(projID2)
-
 
     # This case did not work before
     @unittest.skipUnless(testutil.TEST_ENV,
@@ -233,7 +231,6 @@ class TestDXCp(DXTestCase):
 
         #cleanup
         rm_project(projID)
-
 
 if __name__ == '__main__':
     if 'DXTEST_FULL' not in os.environ:
