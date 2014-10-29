@@ -139,7 +139,7 @@ class TestDXCp(DXTestCase):
         #   This does not:
         #     Successfully cloned from project: None, code 422
         #
-        # Note: causes an error, we need to catch it.
+        # TODO: causes an error, we need to catch it, and continue.
         # Hint from Phil: assert_subprocess_failure
         def copy_empty_folder_on_existing_folder():
             run("dx mkdir {p}:/foo".format(p=projID1))
