@@ -19,7 +19,13 @@
 
 from __future__ import print_function, unicode_literals
 
-import os, sys, unittest, json, tempfile, subprocess, csv, shutil, re, base64, random, time
+import os
+import sys
+import unittest
+import random
+import time
+import tempfile
+import subprocess
 import pipes
 from contextlib import contextmanager
 import pexpect
@@ -126,7 +132,8 @@ class TestDXCp(DXTestCase):
             _, fname1 = create_file_in_project(projID1)
             _, fname2 = create_file_in_project(projID1)
             _, fname3 = create_file_in_project(projID1)
-            run("dx cp {p1}:/{f1} {p1}:/{f2} {p1}:/{f3} {p2}:/".format(f1=fname1, f2=fname2, f3=fname3, p1=projID1, p2=projID2))
+            run("dx cp {p1}:/{f1} {p1}:/{f2} {p1}:/{f3} {p2}:/".
+                format(f1=fname1, f2=fname2, f3=fname3, p1=projID1, p2=projID2))
 
         # copy an entire directory
         def cp_dir():
@@ -187,7 +194,6 @@ class TestDXCp(DXTestCase):
         rm_project(projID1)
         rm_project(projID2)
 
-
     # This case did not work before
     def test_dx_cp_found_in_other_project(self):
         ''' Copy a file-id, where the file is not located in the default project-id.
@@ -204,7 +210,6 @@ class TestDXCp(DXTestCase):
         #cleanup
         rm_project(projID1)
         rm_project(projID2)
-
 
     # This case did not work before
     @unittest.skipUnless(testutil.TEST_ENV,
@@ -234,8 +239,8 @@ class TestDXCp(DXTestCase):
         #cleanup
         rm_project(projID)
 
-
 if __name__ == '__main__':
     if 'DXTEST_FULL' not in os.environ:
-        sys.stderr.write('WARNING: env var DXTEST_FULL is not set; tests that create apps or run jobs will not be run\n')
+        sys.stderr.write(
+            'WARNING: env var DXTEST_FULL is not set; tests that create apps or run jobs will not be run\n')
     unittest.main()
