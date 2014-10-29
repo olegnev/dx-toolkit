@@ -167,14 +167,20 @@ class TestDXCp(DXTestCase):
         def copy_overwrite_wierd_error():
             fileID1, fname1 = create_file_in_project(projID1)
             run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=projID1, f=fname1, p2=projID2))
-            run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=projID1, f=fname1, p2=projID2))
+            output = run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=projID1, f=fname1, p2=projID2))
+            words = output.split()
+            self.assertTrue("already" in words)
+            self.assertTrue("existed" in words)
+            self.assertTrue("destination" in words)
+            # uncomment this check, once the implementation improves
+            #self.assertTrue(fileID1 in words)
 
-        #file_with_same_name()
-        #cp_rename()
-        #multiple_args()
-        #cp_#dir()
+        file_with_same_name()
+        cp_rename()
+        multiple_args()
+        cp_dir()
         #copy_empty_folder_on_existing_folder()
-        # copy_folder_on_existing_folder()
+        #copy_folder_on_existing_folder()
         copy_overwrite_wierd_error()
 
         #cleanup
