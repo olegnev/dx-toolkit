@@ -55,6 +55,7 @@ def run(command, **kwargs):
     print(output)
     return output
 
+
 # Create a random file. Return the file-id, and filename.
 def create_file_in_project(trg_proj_id):
     testdir = tempfile.mkdtemp()
@@ -65,6 +66,7 @@ def create_file_in_project(trg_proj_id):
                       format(trg_proj=trg_proj_id, fname=fd.name)).strip()
         return file_id, os.path.basename(fd.name)
 
+
 def create_file_in_project_folder(trg_proj_id, path):
     testdir = tempfile.mkdtemp()
     with tempfile.NamedTemporaryFile(dir=testdir) as fd:
@@ -74,10 +76,12 @@ def create_file_in_project_folder(trg_proj_id, path):
                       format(trg_proj=trg_proj_id, fname=fd.name, path=path)).strip()
         return file_id, os.path.basename(fd.name)
 
+
 def create_proj():
     project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
     proj_id = run("dx new project {name} --brief".format(name=project_name)).strip()
     return proj_id
+
 
 def rm_project(projID):
     run("dx rmproject -y {p1}".format(p1=projID))
