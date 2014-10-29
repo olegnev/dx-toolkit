@@ -49,6 +49,7 @@ def chdir(dirname=None):
     finally:
         os.chdir(curdir)
 
+
 def run(command, **kwargs):
     print("$ %s" % (command,))
     output = check_output(command, shell=True, **kwargs)
