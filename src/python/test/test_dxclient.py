@@ -4097,7 +4097,6 @@ class TestDXCp(DXTestCase):
         rm_project(cls.proj_id1)
         rm_project(cls.proj_id2)
 
-
     # make sure a folder (path) has the same contents in the two projects
     def verify_folders_are_equal(self, path):
         listing_proj1 = list_folder(self.proj_id1, path)
