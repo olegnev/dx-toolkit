@@ -58,6 +58,7 @@ def overrideEnvironment(**kwargs):
             env[key] = kwargs[key]
     return env
 
+
 def create_file_in_project(trg_proj_id, folder=None):
     rnd_fname = "rnd_file_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
     data = "foo"
@@ -67,15 +68,19 @@ def create_file_in_project(trg_proj_id, folder=None):
         dxfile = dxpy.upload_string(data, name=rnd_fname, project=trg_proj_id, folder=folder)
     return dxfile.get_id(), rnd_fname
 
+
 def create_project():
     project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
     return dxpy.api.project_new({'name': project_name})['id']
 
+
 def rm_project(proj_id):
     dxpy.api.project_destroy(proj_id, {"terminateJobs": True})
 
+
 def create_folder_in_project(proj_id, path):
     dxpy.api.project_new_folder(proj_id, {"folder": path})
+
 
 def list_folder(proj_id, path):
     return dxpy.api.project_list_folder(proj_id, {"folder": path})
