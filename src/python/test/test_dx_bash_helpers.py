@@ -109,8 +109,8 @@ def update_environ(**kwargs):
             output[k] = v
     return output
 
+@unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
 class TestDXBashHelpers(DXTestCase):
-    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_vars(self):
         '''  Quick test for the bash variables '''
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
@@ -153,7 +153,6 @@ class TestDXBashHelpers(DXTestCase):
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
 
-    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_sub_jobs(self):
         '''  Tests a bash script that generates sub-jobs '''
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
@@ -224,7 +223,6 @@ class TestDXBashHelpers(DXTestCase):
             check_file_content('first_file', 'first_file.txt', "f1.txt", "contents of first_file")
             check_file_content('final_file', 'final_file.txt', "f2.txt", "1234ABCD")
 
-    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_parseq(self):
         ''' Tests the parallel/sequential variations '''
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as p:
@@ -245,6 +243,8 @@ class TestDXBashHelpers(DXTestCase):
             run(cmd_args, env=env)
 
 
+@unittest.skipUnless(testutil.TEST_RUN_JOBS and testutil.TEST_BENCHMARKS,
+                     'skipping tests that would run jobs, or, run benchmarks')
 class TestDXBashHelpersBenchmark(DXTestCase):
 
     def create_file_of_size(self, fname, size_bytes):
@@ -277,23 +277,18 @@ class TestDXBashHelpersBenchmark(DXTestCase):
             cmd_args.extend(flag_list)
             run(cmd_args, env=env)
 
-    @unittest.skipUnless(testutil.TEST_BENCHMARKS, 'skipping tests that run benchmarks')
     def test_seq(self):
         self.run_applet_with_flags(["-iparallel=false"], 40, 1024 * 1024)
 
-    @unittest.skipUnless(testutil.TEST_BENCHMARKS, 'skipping tests that run benchmarks')
     def test_par(self):
         self.run_applet_with_flags(["-iparallel=true"], 40, 1024 * 1024)
 
-    @unittest.skipUnless(testutil.TEST_BENCHMARKS, 'skipping tests that run benchmarks')
     def test_seq_100m(self):
         self.run_applet_with_flags(["-iparallel=false"], 40, 100 * 1024 * 1024)
 
-    @unittest.skipUnless(testutil.TEST_BENCHMARKS, 'skipping tests that run benchmarks')
     def test_par_100m(self):
         self.run_applet_with_flags(["-iparallel=true"], 40, 100 * 1024 * 1024)
 
-    @unittest.skipUnless(testutil.TEST_BENCHMARKS, 'skipping tests that run benchmarks')
     def test_par_1g(self):
         self.run_applet_with_flags(["-iparallel=true"], 10, 1024 * 1024 * 1024)
 
