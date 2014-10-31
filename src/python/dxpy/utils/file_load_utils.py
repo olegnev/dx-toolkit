@@ -352,7 +352,7 @@ def gen_bash_vars(job_input_file, check_name_collision=True):
         gen_text_line_and_name_collision(key, string_of_value(desc))
     for file_key, desc in file_key_descs.iteritems():
         gen_text_line_and_name_collision(file_key, string_of_value(desc['handler']))
-        gen_text_line_and_name_collision(file_key + "_basename", string_of_value(desc['basename']))
+        gen_text_line_and_name_collision(file_key + "_name", string_of_value(desc['basename']))
         gen_text_line_and_name_collision(file_key + "_prefix", string_of_value(desc['prefix']))
         gen_text_line_and_name_collision(file_key + "_path", string_of_value(desc['path']))
 
