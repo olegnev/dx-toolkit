@@ -59,14 +59,13 @@ def overrideEnvironment(**kwargs):
     return env
 
 
-def create_file_in_project(trg_proj_id, folder=None):
-    rnd_fname = "rnd_file_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
+def create_file_in_project(fname, trg_proj_id, folder=None):
     data = "foo"
     if folder is None:
-        dxfile = dxpy.upload_string(data, name=rnd_fname, project=trg_proj_id)
+        dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id)
     else:
-        dxfile = dxpy.upload_string(data, name=rnd_fname, project=trg_proj_id, folder=folder)
-    return dxfile.get_id(), rnd_fname
+        dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id, folder=folder)
+    return dxfile.get_id(), fname
 
 
 def create_project():
@@ -83,8 +82,12 @@ def create_folder_in_project(proj_id, path):
 
 
 def list_folder(proj_id, path):
-    return dxpy.api.project_list_folder(proj_id, {"folder": path})
-
+    output = dxpy.api.project_list_folder(proj_id, {"folder": path})
+    # Sort the results to create ordering. This allows using the results
+    # for comparison purposes.
+    output['folders'] = sorted(output['folders'])
+    output['objects'] = sorted(output['objects'])
+    return output
 
 def makeGenomeObject():
     # NOTE: for these tests we don't upload a full sequence file (which
@@ -4091,11 +4094,17 @@ class TestDXCp(DXTestCase):
         # setup two projects
         cls.proj_id1 = create_project()
         cls.proj_id2 = create_project()
+        cls.counter = 1
 
     @classmethod
     def tearDownClass(cls):
         rm_project(cls.proj_id1)
         rm_project(cls.proj_id2)
+
+    @classmethod
+    def gen_uniq_fname(cls):
+        cls.counter += 1
+        return "file_{}".format(cls.counter)
 
     # make sure a folder (path) has the same contents in the two projects
     def verify_folders_are_equal(self, path):
@@ -4103,7 +4112,7 @@ class TestDXCp(DXTestCase):
         listing_proj2 = list_folder(self.proj_id2, path)
         self.assertEqual(listing_proj1, listing_proj2)
 
-    def verify_file_metadata_is_equal(self, path1, path2=None):
+    def verify_file_ids_are_equal(self, path1, path2=None):
         if path2 is None:
             path2 = path1
         listing_proj1 = run("dx ls {proj}:/{path} --brief".format(proj=self.proj_id1, path=path1).strip())
@@ -4115,29 +4124,29 @@ class TestDXCp(DXTestCase):
     def test_file_with_same_name(self):
         create_folder_in_project(self.proj_id1, "/earthsea")
         create_folder_in_project(self.proj_id2, "/earthsea")
-        file_id, _ = create_file_in_project(self.proj_id1, folder="/earthsea")
+        file_id, _ = create_file_in_project(self.gen_uniq_fname(), self.proj_id1, folder="/earthsea")
         run("dx cp {p1}:/earthsea/{f} {p2}:/earthsea/".format(f=file_id, p1=self.proj_id1, p2=self.proj_id2))
         self.verify_folders_are_equal("/earthsea")
 
     # copy and rename
     #   dx cp  proj-1111:/file-1111   proj-2222:/file-2222
     def test_cp_rename(self):
-        file_id, basename = create_file_in_project(self.proj_id1)
+        file_id, basename = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
         run("dx cp {p1}:/{f1} {p2}:/{f2}".format(f1=basename, f2="AAA.txt",
                                                  p1=self.proj_id1, p2=self.proj_id2))
-        self.verify_file_metadata_is_equal(basename, path2="AAA.txt")
+        self.verify_file_ids_are_equal(basename, path2="AAA.txt")
 
     # multiple arguments
     #   dx cp  proj-1111:/file-1111 proj-2222:/file-2222 proj-3333:/
     def test_multiple_args(self):
-        _, fname1 = create_file_in_project(self.proj_id1)
-        _, fname2 = create_file_in_project(self.proj_id1)
-        _, fname3 = create_file_in_project(self.proj_id1)
+        _, fname1 = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
+        _, fname2 = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
+        _, fname3 = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
         run("dx cp {p1}:/{f1} {p1}:/{f2} {p1}:/{f3} {p2}:/".
             format(f1=fname1, f2=fname2, f3=fname3, p1=self.proj_id1, p2=self.proj_id2))
-        self.verify_file_metadata_is_equal(fname1)
-        self.verify_file_metadata_is_equal(fname2)
-        self.verify_file_metadata_is_equal(fname3)
+        self.verify_file_ids_are_equal(fname1)
+        self.verify_file_ids_are_equal(fname2)
+        self.verify_file_ids_are_equal(fname3)
 
     # copy an entire directory
     def test_cp_dir(self):
@@ -4160,7 +4169,7 @@ class TestDXCp(DXTestCase):
 
     def test_copy_folder_on_existing_folder(self):
         create_folder_in_project(self.proj_id1, "/baz")
-        _, _ = create_file_in_project(self.proj_id1, folder="/baz")
+        create_file_in_project(self.gen_uniq_fname(), self.proj_id1, folder="/baz")
         run("dx cp {p1}:/baz {p2}:/".format(p1=self.proj_id1, p2=self.proj_id2))
         with self.assertSubprocessFailure(stderr_regexp='If cloned, a folder would conflict', exit_code=3):
             run("dx cp {p1}:/baz {p2}:/".format(p1=self.proj_id1, p2=self.proj_id2))
@@ -4174,8 +4183,8 @@ class TestDXCp(DXTestCase):
     #   f
     #   l
     #   ...
-    def test_copy_overwrite_weird_error(self):
-        file_id1, fname1 = create_file_in_project(self.proj_id1)
+    def test_copy_overwrite(self):
+        file_id1, fname1 = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
         run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=self.proj_id1, f=fname1, p2=self.proj_id2))
         output = run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=self.proj_id1,
                                                         f=fname1, p2=self.proj_id2))
@@ -4193,22 +4202,20 @@ class TestDXCp(DXTestCase):
 
         This could work, with some enhacements to the 'dx cp' implementation.
         '''
-        file_id, _ = create_file_in_project(self.proj_id1)
+        file_id, _ = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
         run('dx cp ' + file_id + ' ' + self.proj_id2)
 
-    #@unittest.skipUnless(testutil.TEST_ENV,
-    #                     'skipping test that would clobber your local environment')
-    @unittest.skip("PTFM-11906 This doesn't work yet.")
+    @unittest.skipUnless(testutil.TEST_ENV,
+                         'skipping test that would clobber your local environment')
+    # This will start working, once PTFM-11906 is addressed. The issue is
+    # that you must specify a project when copying a file. In theory this
+    # can be addressed, because the project can be found, given the file-id.
     def test_no_env(self):
         ''' Try to copy a file when the context is empty.
         '''
-        # create a file
-        testdir = tempfile.mkdtemp()
-        with tempfile.NamedTemporaryFile(dir=testdir) as fd:
-            fd.write("foo")
-            fd.flush()
-            file_id = run("dx upload " + fd.name + " --brief --wait").strip()
-            self.assertTrue(file_id.startswith('file-'))
+        # create a file in the current project
+        #  -- how do we get the current project id?
+        file_id, _ = create_file_in_project(self.gen_uniq_fname(), self.project)
 
         # Unset environment
         from dxpy.utils.env import write_env_var
