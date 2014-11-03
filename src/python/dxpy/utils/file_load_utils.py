@@ -291,6 +291,7 @@ def analyze_bash_vars(job_input_file):
     export genes_path=("$HOME/in/genes/A.txt" "$HOME/in/genes/B.txt")
     '''
     _, file_entries, rest_hash = get_job_input_filenames(job_input_file)
+
     def factory():
         return {'handler': [], 'basename': [],  'prefix': [], 'path': []}
     file_key_descs = collections.defaultdict(factory)
@@ -343,6 +344,7 @@ def gen_bash_vars(job_input_file, check_name_collision=True):
             return string_of_elem(val)
 
     var_defs_hash = {}
+
     def gen_text_line_and_name_collision(key, val):
         ''' In the absence of a name collision, create a line describing a bash variable.
         '''
@@ -352,7 +354,7 @@ def gen_bash_vars(job_input_file, check_name_collision=True):
             else:
                 sys.stderr.write(dxpy.utils.printing.fill(
                     "Creating environment variable ({}) would cause a name collision".format(key))
-                                 + "\n")
+                    + "\n")
         else:
             var_defs_hash[key] = val
 
