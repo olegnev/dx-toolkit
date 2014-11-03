@@ -387,7 +387,7 @@ def _gen_bash_vars_old(job_input_file):
         else:
             return "{}".format(pipes.quote(v if isinstance(v, basestring) else json.dumps(v)))
 
-    key_val_map={}
+    key_val_map = {}
     for k, v in json.load(open(job_input_file)).iteritems():
         key_val_map[k] = old_string_of_elem(v)
     return key_val_map

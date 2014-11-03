@@ -19,8 +19,12 @@
 
 from __future__ import print_function, unicode_literals
 
-import os, unittest, json, tempfile, shutil, pipes
-
+import os
+import unittest
+import json
+import tempfile
+import shutil
+import pipes
 import dxpy
 from dxpy_testutil import DXTestCase, check_output, temporary_project
 import dxpy_testutil as testutil
@@ -108,6 +112,7 @@ def update_environ(**kwargs):
         else:
             output[k] = v
     return output
+
 
 @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
 class TestDXBashHelpers(DXTestCase):
@@ -242,7 +247,6 @@ class TestDXBashHelpers(DXTestCase):
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
 
-    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
     def test_deepdirs(self):
         ''' Tests the use of subdirectories in the output directory '''
         def check_output_key(job_output, out_param_name, num_files, dxproj):
@@ -297,6 +301,7 @@ class TestDXBashHelpers(DXTestCase):
             verify_files_in_dir("/hint2", ["Z_1.txt", "Z_2.txt", "Z_3.txt"], dxproj)
             verify_files_in_dir("/foo/bar", ["luke.txt"], dxproj)
             verify_files_in_dir("/", ["A.txt", "B.txt", "C.txt", "num_chrom.txt"], dxproj)
+
 
 @unittest.skipUnless(testutil.TEST_RUN_JOBS and testutil.TEST_BENCHMARKS,
                      'skipping tests that would run jobs, or, run benchmarks')
