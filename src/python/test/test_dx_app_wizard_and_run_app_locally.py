@@ -387,6 +387,9 @@ class TestDXBashHelpers(DXTestCase):
                                            '-isl=hello', '-isl=world', '-isl=next',
                                            '-imisc={"hello": "world", "foo": true}'])
 
+    def test_deepdirs(self):
+        self.run_test_app_locally('deepdirs', [])
+
     def test_basic(self):
         # Make a couple files for testing
         print("testing upload/download helpers")

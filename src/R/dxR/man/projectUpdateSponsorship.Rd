@@ -1,9 +1,10 @@
-\name{projectInvite}
-\alias{projectInvite}
-\title{projectInvite API wrapper}
+\name{projectUpdateSponsorship}
+\alias{projectUpdateSponsorship}
+\title{projectUpdateSponsorship API wrapper}
 \usage{
-  projectInvite(objectID, inputParams = emptyNamedList,
-    jsonifyData = TRUE, alwaysRetry = FALSE)
+  projectUpdateSponsorship(objectID,
+    inputParams = emptyNamedList, jsonifyData = TRUE,
+    alwaysRetry = TRUE)
 }
 \arguments{
   \item{objectID}{DNAnexus object ID}
@@ -29,13 +30,14 @@
 }
 \description{
   This function makes an API call to the
-  \code{/project-xxxx/invite} API method; it is a simple
-  wrapper around the \code{\link{dxHTTPRequest}} function
-  which makes POST HTTP requests to the API server.
+  \code{/project-xxxx/updateSponsorship} API method; it is
+  a simple wrapper around the \code{\link{dxHTTPRequest}}
+  function which makes POST HTTP requests to the API
+  server.
 }
 \references{
   API spec documentation:
-  \url{https://wiki.dnanexus.com/API-Specification-v1.0.0/Project-Permissions-and-Sharing#API-method\%3A-\%2Fproject-xxxx\%2Finvite}
+  \url{https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method\%3A-\%2Fproject-xxxx\%2FupdateSponsorship}
 }
 \seealso{
   \code{\link{dxHTTPRequest}}

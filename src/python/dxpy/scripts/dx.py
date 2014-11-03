@@ -139,11 +139,11 @@ from dxpy.utils.printing import (CYAN, BLUE, YELLOW, GREEN, RED, WHITE, UNDERLIN
                                  DNANEXUS_X, set_colors, set_delimiter, get_delimiter, DELIMITER, fill,
                                  tty_rows, tty_cols, pager)
 from dxpy.utils.pretty_print import format_tree, format_table
-from dxpy.utils.resolver import (pick, paginate_and_pick, is_hashid, is_data_obj_id, is_container_id, is_job_id, is_analysis_id,
-                                 get_last_pos_of_char, resolve_container_id_or_name, resolve_path,
+from dxpy.utils.resolver import (pick, paginate_and_pick, is_hashid, is_data_obj_id, is_container_id, is_job_id,
+                                 is_analysis_id, get_last_pos_of_char, resolve_container_id_or_name, resolve_path,
                                  resolve_existing_path, get_app_from_path, resolve_app, get_exec_handler,
-                                 cached_project_names, split_unescaped,
-                                 ResolutionError, get_first_pos_of_char, resolve_to_objects_or_project)
+                                 split_unescaped, ResolutionError, get_first_pos_of_char,
+                                 resolve_to_objects_or_project)
 from dxpy.utils.completer import (path_completer, DXPathCompleter, DXAppCompleter, LocalCompleter,
                                   ListCompleter, MultiCompleter)
 from dxpy.utils.describe import (print_data_obj_desc, print_desc, print_ls_desc, get_ls_l_desc, print_ls_l_desc,
@@ -366,17 +366,20 @@ def login(args):
             print(fill(str(details)), file=sys.stderr)
 
     if using_default or args.staging:
-        greeting = dxpy.api.system_greet({'client': 'dxclient', 'version': 'v'+dxpy.TOOLKIT_VERSION})
-        if greeting.get('messages'):
-            print(BOLD("New messages from ") + DNANEXUS_LOGO())
-            for message in greeting['messages']:
-                print(BOLD("Date:    ") + datetime.datetime.fromtimestamp(message['date']/1000).ctime())
-                print(BOLD("Subject: ") + fill(message['title'], subsequent_indent=' '*9))
-                body = message['body'].splitlines()
-                if len(body) > 0:
-                    print(BOLD("Message: ") + body[0])
-                    for line in body[1:]:
-                        print(' '*9 + line)
+        try:
+            greeting = dxpy.api.system_greet({'client': 'dxclient', 'version': 'v'+dxpy.TOOLKIT_VERSION})
+            if greeting.get('messages'):
+                print(BOLD("New messages from ") + DNANEXUS_LOGO())
+                for message in greeting['messages']:
+                    print(BOLD("Date:    ") + datetime.datetime.fromtimestamp(message['date']/1000).ctime())
+                    print(BOLD("Subject: ") + fill(message['title'], subsequent_indent=' '*9))
+                    body = message['body'].splitlines()
+                    if len(body) > 0:
+                        print(BOLD("Message: ") + body[0])
+                        for line in body[1:]:
+                            print(' '*9 + line)
+        except Exception as e:
+            warn("Error while retrieving greet data: {}".format(e))
 
     args.current = False
     args.name = None
@@ -467,13 +470,15 @@ def prompt_for_env_var(prompt_str, env_var_str):
         elif default is not None:
             return default
 
+
 def pick_and_set_project(args):
     try:
         result_generator = dxpy.find_projects(describe=True,
                                               name=args.name, name_mode='glob',
                                               level=('VIEW' if args.public else args.level),
                                               explicit_perms=(not args.public if not args.public else None),
-                                              public=(args.public if args.public else None))
+                                              public=(args.public if args.public else None),
+                                              first_page_size=10)
     except:
         err_exit('Error while listing available projects')
     any_results = False
@@ -1063,7 +1068,7 @@ def cp(args):
                                                  "project": dest_proj,
                                                  "destination": dest_path})['exists']
                 if len(exists) > 0:
-                    print(fill('The following objects already existed in the destination container and were not copied:') + '\n ' + '\n '.join(json.dumps(exists)))
+                    print(fill('The following objects already existed in the destination container and were not copied:') + '\n ' + '\n '.join(exists))
                 return
             except:
                 err_exit()
@@ -1074,7 +1079,7 @@ def cp(args):
                                                  "project": dest_proj,
                                                  "destination": dest_folder})['exists']
                 if len(exists) > 0:
-                    print(fill('The following objects already existed in the destination container and were not copied:') + '\n ' + '\n '.join(json.dumps(exists)))
+                    print(fill('The following objects already existed in the destination container and were not copied:') + '\n ' + '\n '.join(exists))
                 for result in src_results:
                     if result['id'] not in exists:
                         dxpy.DXHTTPRequest('/' + result['id'] + '/rename',
@@ -1470,20 +1475,41 @@ def set_details(args):
                                                      allow_mult=True, all_mult=args.all)
 
     if entity_results is None:
-        parser.exit(1, fill('Could not resolve "' + args.path + '" to a name or ID') + '\n')
+        err_exit(exception=ResolutionError('Could not resolve "' + args.path + '" to a name or ID'),
+                 expected_exceptions=(ResolutionError,))
 
-    try:
-        args.details = json.loads(args.details)
-    except ValueError:
-        parser.exit(1, 'Error: details could not be parsed as JSON')
+    # Throw error if both -f/--details-file and details supplied.
+    if args.details is not None and args.details_file is not None:
+        err_exit(exception=DXParserError('Cannot provide both -f/--details-file and details'),
+                 expected_exceptions=(DXParserError,))
+
+    elif args.details is not None:
+        try:
+            details = json.loads(args.details)
+        except ValueError as e:
+            err_exit('Error: Details could not be parsed as JSON', expected_exceptions=(ValueError,), exception=e)
+
+    elif args.details_file is not None:
+        with (sys.stdin if args.details_file == '-' else open(args.details_file, 'r')) as fd:
+            data = fd.read()
+            try:
+                details = json.loads(data)
+            except ValueError as e:
+                err_exit('Error: File contents could not be parsed as JSON', expected_exceptions=(ValueError,),
+                         exception=e)
+
+    # Throw error if missing arguments.
+    else:
+        err_exit(exception=DXParserError('Must set one of -f/--details-file or details'),
+                 expected_exceptions=(DXParserError,))
 
     for result in entity_results:
         try:
-            dxpy.DXHTTPRequest('/' + result['id'] + '/setDetails',
-                               args.details)
-        except (dxpy.DXAPIError,) + network_exceptions as details:
-            print(fill(details.__class__.__name__ + ': ' + str(details)))
+            dxpy.DXHTTPRequest('/' + result['id'] + '/setDetails', details)
+        except (dxpy.DXAPIError,) + network_exceptions as exc_details:
+            print(fill(exc_details.__class__.__name__ + ': ' + str(exc_details)))
             had_error = True
+
     if had_error:
         parser.exit(1)
 
@@ -1756,7 +1782,7 @@ def download(args):
             abs_path, strip_prefix = path, os.path.dirname(path.rstrip('/'))
         else:
             wd = get_env_var('DX_CLI_WD', u'/')
-            abs_path, strip_prefix = os.path.join(wd, path), wd
+            abs_path, strip_prefix = os.path.join(wd, path), os.path.dirname(os.path.join(wd, path).rstrip('/'))
         if len(abs_path) > 1:
             abs_path = abs_path.rstrip('/')
         return abs_path, strip_prefix
@@ -2286,6 +2312,13 @@ def find_executions(args):
         err_exit()
 
 def find_data(args):
+    # --folder deprecated to --path.
+    if args.folder is None and args.path is not None:
+        args.folder = args.path
+    elif args.folder is not None and args.path is not None:
+        err_exit(exception=DXParserError('Cannot supply both --folder and --path.'),
+                 expected_exceptions=(DXParserError,))
+
     try_call(process_find_by_property_args, args)
     if args.all_projects:
         args.project = None
@@ -2296,8 +2329,17 @@ def find_data(args):
     else:
         if get_last_pos_of_char(':', args.project) == -1:
             args.project = args.project + ':'
+
+        if args.folder is not None and get_last_pos_of_char(':', args.folder) != -1:
+            err_exit(exception=DXParserError('Cannot supply both --project and --path PROJECTID:FOLDERPATH.'),
+                     expected_exceptions=(DXParserError,))
+
         args.project, _none, _none = try_call(resolve_existing_path,
                                               args.project, 'project')
+
+    if args.folder is not None and not args.folder.startswith('/'):
+        args.project, args.folder, _none = try_call(resolve_path, args.folder, 'folder')
+
     try:
         results = list(dxpy.find_data_objects(classname=args.classname,
                                               state=args.state,
@@ -2331,30 +2373,29 @@ def find_data(args):
     except:
         err_exit()
 
+
 def find_projects(args):
     try_call(process_find_by_property_args, args)
     try:
-        results = list(dxpy.find_projects(name=args.name, name_mode='glob',
-                                          properties=args.properties, tags=args.tag,
-                                          level=('VIEW' if args.public else args.level),
-                                          describe=(not args.brief),
-                                          explicit_perms=(not args.public if not args.public else None),
-                                          public=(args.public if args.public else None)))
+        results = dxpy.find_projects(name=args.name, name_mode='glob',
+                                     properties=args.properties, tags=args.tag,
+                                     level=('VIEW' if args.public else args.level),
+                                     describe=(not args.brief),
+                                     explicit_perms=(not args.public if not args.public else None),
+                                     public=(args.public if args.public else None))
         if args.json:
-            print(json.dumps(results, indent=4))
+            print(json.dumps(list(results), indent=4))
             return
         if args.brief:
             for result in results:
                 print(result['id'])
-            return
         else:
             for result in results:
-                cached_project_names[result['describe']['name']] = result['id']
-                print(result["id"] + DELIMITER(" : ") + result['describe']['name'] + DELIMITER(' (') + result["level"] + DELIMITER(')'))
-        print("")
-        return [result["id"] for result in results]
+                print(result["id"] + DELIMITER(" : ") + result['describe']['name'] +
+                      DELIMITER(' (') + result["level"] + DELIMITER(')'))
     except:
         err_exit()
+
 
 def find_apps(args):
     def maybe_x(result):
@@ -3969,7 +4010,7 @@ run_executable_action = parser_run.add_argument('executable',
 run_executable_action.completer = MultiCompleter([DXAppCompleter(),
                                                   DXPathCompleter(classes=['applet', 'workflow'], visibility="visible")])
 parser_run.add_argument('-h', '--help', help='show this help message and exit', nargs=0, action=runHelp)
-parser_run.add_argument('--clone', help=fill('Job ID or name from which to use as default options (will use the exact same executable ID, destination project and folder, job input, instance type requests, and a similar name unless explicitly overridden by command-line arguments)', width_adjustment=-24))
+parser_run.add_argument('--clone', help=fill('Job or analysis ID or name from which to use as default options (will use the exact same executable ID, destination project and folder, job input, instance type requests, and a similar name unless explicitly overridden by command-line arguments)', width_adjustment=-24))
 parser_run.add_argument('--alias', '--version', dest='alias',
                         help=fill('Alias (tag) or version of the app to run (default: "default" if an app)', width_adjustment=-24))
 parser_run.add_argument('--destination', '--folder', metavar='PATH', dest='folder', help=fill('The full project:folder path in which to output the results.  By default, the current working directory will be used.', width_adjustment=-24))
@@ -4167,7 +4208,8 @@ parser_set_details = subparsers.add_parser('set_details', help='Set details on a
                                            description='Set the JSON details of a data object.', prog="dx set_details",
                                            parents=[env_args, all_arg])
 parser_set_details.add_argument('path', help='ID or path to data object to modify').completer = DXPathCompleter()
-parser_set_details.add_argument('details', help='JSON to store as details')
+parser_set_details.add_argument('details', help='JSON to store as details', nargs='?')
+parser_set_details.add_argument('-f', '--details-file', help='Path to local file containing JSON to store as details')
 parser_set_details.set_defaults(func=set_details)
 register_subparser(parser_set_details, categories='metadata')
 
@@ -4351,8 +4393,13 @@ parser_find_executions.completer = DXPathCompleter(expected='project')
 register_subparser(parser_find_executions, subparsers_action=subparsers_find, categories='exec')
 
 parser_find_data = subparsers_find.add_parser('data', help='Find data objects',
-                                              description='Finds data objects with the given search parameters.  By default, restricts the search to the current project if set.  To search over all projects (excludes public projects), use --all-projects (overrides --project, --folder, --norecurse).',
-                                              parents=[stdout_args, json_arg, no_color_arg, delim_arg, env_args, find_by_properties_and_tags_args], prog='dx find data')
+                                              description='Finds data objects with the given search parameters.  By' +
+                                              ' default, restricts the search to the current project if set.  To ' +
+                                              'search over all projects (excludes public projects), use ' +
+                                              '--all-projects (overrides --path and --norecurse).',
+                                              parents=[stdout_args, json_arg, no_color_arg, delim_arg, env_args,
+                                                       find_by_properties_and_tags_args],
+                                              prog='dx find data')
 parser_find_data.add_argument('--class', dest='classname', choices=['record', 'file', 'gtable', 'applet', 'workflow'], help='Data object class')
 parser_find_data.add_argument('--state', choices=['open', 'closing', 'closed', 'any'], help='State of the object')
 parser_find_data.add_argument('--visibility', choices=['hidden', 'visible', 'either'], default='visible', help='Whether the object is hidden or not')
@@ -4360,8 +4407,10 @@ parser_find_data.add_argument('--name', help='Name of the object')
 parser_find_data.add_argument('--type', help='Type of the data object')
 parser_find_data.add_argument('--link', help='Object ID that the data object links to')
 parser_find_data.add_argument('--all-projects', '--allprojects', help='Extend search to all projects (excluding public projects)', action='store_true')
-parser_find_data.add_argument('--project', help='Project with which to restrict the results')
-parser_find_data.add_argument('--folder', help='Folder path with which to restrict the results (\'--project\' must be used in this case)').completer = DXPathCompleter(expected='folder')
+parser_find_data.add_argument('--project', help=argparse.SUPPRESS)
+parser_find_data.add_argument('--folder', help=argparse.SUPPRESS).completer = DXPathCompleter(expected='folder')
+parser_find_data.add_argument('--path', help='Project and/or folder in which to restrict the results',
+                              metavar='PROJECT:FOLDER').completer = DXPathCompleter(expected='folder')
 parser_find_data.add_argument('--norecurse', dest='recurse', help='Do not recurse into subfolders', action='store_false')
 parser_find_data.add_argument('--mod-after', help='Date (e.g. 2012-01-01) or integer timestamp after which the object was last modified (negative number means ms in the past, or use suffix s, m, h, d, w, M, y)')
 parser_find_data.add_argument('--mod-before', help='Date (e.g. 2012-01-01) or integer timestamp before which the object was last modified (negative number means ms in the past, or use suffix s, m, h, d, w, M, y)')

@@ -20,12 +20,13 @@
 from __future__ import print_function, unicode_literals
 
 import os, sys, unittest, json, tempfile, subprocess, csv, shutil, re, base64, random, time
+import pipes
 from contextlib import contextmanager
 import pexpect
 
 import dxpy
 from dxpy.scripts import dx_build_app
-from dxpy_testutil import DXTestCase, check_output, temporary_project
+from dxpy_testutil import DXTestCase, check_output, temporary_project, select_project
 import dxpy_testutil as testutil
 from dxpy.packages import requests
 from dxpy.exceptions import DXAPIError, EXPECTED_ERR_EXIT_STATUS
@@ -79,6 +80,24 @@ def makeGenomeObject():
     sequence_file.wait_on_close()
 
     return genome_record.get_id()
+
+
+class TestDXTestUtils(DXTestCase):
+    def test_temporary_project(self):
+        test_dirname = '/test_folder'
+        with temporary_project('test_temporary_project', select=True) as temp_project:
+            self.assertEquals('test_temporary_project:/', run('dx pwd').strip())
+
+    def test_select_project(self):
+        test_dirname = '/test_folder'
+        with temporary_project('test_select_project') as temp_project:
+            test_projectid = temp_project.get_id()
+            run('dx mkdir -p {project}:{dirname}'.format(project=test_projectid, dirname=test_dirname))
+            with select_project(test_projectid):
+                # This would fail if the project context hadn't been
+                # successfully changed by select_project
+                run('dx cd {dirname}'.format(dirname=test_dirname))
+
 
 class TestDXClient(DXTestCase):
     def test_dx_version(self):
@@ -137,8 +156,6 @@ class TestDXClient(DXTestCase):
         run("dx unset_properties '{n}' '{n}' '{n}2'".format(n=table_name))
         run("dx tag '{n}' '{n}'2".format(n=table_name))
         run("dx describe '{n}'".format(n=table_name))
-
-        self.assertTrue(self.project in run("dx find projects --brief"))
 
         run("dx new record -o :foo --verbose")
         record_id = run("dx new record -o :foo2 --brief --visibility hidden --property foo=bar " +
@@ -215,6 +232,55 @@ class TestDXClient(DXTestCase):
         run("dx remove_types Ψ abc xyz")
         with self.assertSubprocessFailure(stderr_regexp="Could not resolve", exit_code=1):
             run("dx remove_types ΨΨ Ψ")
+
+    def test_dx_set_details(self):
+        record_id = run("dx new record Ψ1 --brief").strip()
+        run("dx set_details Ψ1 '{\"foo\": \"bar\"}'")
+        dxrecord = dxpy.DXRecord(record_id)
+        details = dxrecord.get_details()
+        self.assertEqual({"foo": "bar"}, details, msg="dx set_details with valid JSON string input failed.")
+
+    def test_dx_set_details_with_file(self):
+        # Create temporary JSON file with valid JSON.
+        with tempfile.NamedTemporaryFile() as tmp_file, tempfile.NamedTemporaryFile() as tmp_invalid_file:
+            tmp_file.write('{\"foo\": \"bar\"}')
+            tmp_file.flush()
+
+            # Test -f with valid JSON file.
+            record_id = run("dx new record Ψ2 --brief").strip()
+            run("dx set_details Ψ2 -f " + pipes.quote(tmp_file.name))
+            dxrecord = dxpy.DXRecord(record_id)
+            details = dxrecord.get_details()
+            self.assertEqual({"foo": "bar"}, details, msg="dx set_details -f with valid JSON input file failed.")
+
+            # Test --details-file with valid JSON file.
+            record_id = run("dx new record Ψ3 --brief").strip()
+            run("dx set_details Ψ3 --details-file " + pipes.quote(tmp_file.name))
+            dxrecord = dxpy.DXRecord(record_id)
+            details = dxrecord.get_details()
+            self.assertEqual({"foo": "bar"}, details,
+                             msg="dx set_details --details-file with valid JSON input file failed.")
+
+            # Create temporary JSON file with invalid JSON.
+            tmp_invalid_file.write('{\"foo\": \"bar\"')
+            tmp_invalid_file.flush()
+
+            # Test above with invalid JSON file.
+            record_id = run("dx new record Ψ4 --brief").strip()
+            with self.assertSubprocessFailure(stderr_regexp="JSON", exit_code=3):
+                run("dx set_details Ψ4 -f " + pipes.quote(tmp_invalid_file.name))
+
+            # Test command with (-f or --details-file) and CL JSON.
+            with self.assertSubprocessFailure(stderr_regexp="Error: Cannot provide both -f/--details-file and details",
+                                              exit_code=3):
+                run("dx set_details Ψ4 '{ \"foo\":\"bar\" }' -f " + pipes.quote(tmp_file.name))
+
+            # Test piping JSON from STDIN.
+            record_id = run("dx new record Ψ5 --brief").strip()
+            run("cat " + pipes.quote(tmp_file.name) + " | dx set_details Ψ5 -f -")
+            dxrecord = dxpy.DXRecord(record_id)
+            details = dxrecord.get_details()
+            self.assertEqual({"foo": "bar"}, details, msg="dx set_details -f - with valid JSON input failed.")
 
     def test_dx_shell(self):
         shell = pexpect.spawn("bash")
@@ -801,12 +867,21 @@ class TestDXClientUploadDownload(DXTestCase):
             with chdir(tempfile.mkdtemp()), temporary_project('dx download test proj') as other_project:
                 run("dx mkdir /super/")
                 run("dx mv '{}' /super/".format(os.path.basename(wd)))
-                run("dx select " + other_project.get_id())
-                run("dx download -r '{proj}:/super/{path}'".format(proj=self.project, path=os.path.basename(wd)))
 
-                tree1 = check_output("cd {wd}; find .".format(wd=wd), shell=True)
-                tree2 = check_output("cd {wd}; find .".format(wd=os.path.basename(wd)), shell=True)
-                self.assertEqual(tree1, tree2)
+                # Specify an absolute path in another project
+                with select_project(other_project):
+                    run("dx download -r '{proj}:/super/{path}'".format(proj=self.project, path=os.path.basename(wd)))
+
+                    tree1 = check_output("cd {wd} && find .".format(wd=wd), shell=True)
+                    tree2 = check_output("cd {wd} && find .".format(wd=os.path.basename(wd)), shell=True)
+                    self.assertEqual(tree1, tree2)
+
+                # Now specify a relative path in the same project
+                with chdir(tempfile.mkdtemp()), select_project(self.project):
+                    run("dx download -r super/{path}/".format(path=os.path.basename(wd)))
+
+                    tree3 = check_output("cd {wd} && find .".format(wd=os.path.basename(wd)), shell=True)
+                    self.assertEqual(tree1, tree3)
 
             with self.assertSubprocessFailure(stderr_regexp="paths are both file and folder names", exit_code=1):
                 cmd = "dx cd {d}; dx mkdir {f}; dx download -r {f}*"
@@ -908,6 +983,65 @@ class TestDXClientUploadDownload(DXTestCase):
                 listing = run("dx ls /destdir/a").split("\n")
                 self.assertIn(os.path.basename(fd2.name), listing)
 
+    @unittest.skipUnless(testutil.TEST_RUN_JOBS, "Skipping test that would run jobs")
+    def test_dx_download_by_job_id_and_output_field(self):
+        test_project_name = 'PTFM-13437'
+        test_file_name = 'test_file_01'
+        expected_result = 'asdf1234...'
+        with temporary_project(test_project_name, select=True) as temp_project:
+            temp_project_id = temp_project.get_id()
+
+            # Create and run minimal applet to generate output file.
+            code_str = """import dxpy
+@dxpy.entry_point('main')
+def main():
+    test_file_01 = dxpy.upload_string('{exp_res}', name='{filename}')
+    output = {{}}
+    output['{filename}'] = dxpy.dxlink(test_file_01)
+    return output
+dxpy.run()
+"""
+            code_str = code_str.format(exp_res=expected_result, filename=test_file_name)
+            app_spec = {"name": "test_applet_dx_download_by_jbor",
+                        "project": temp_project_id,
+                        "dxapi": "1.0.0",
+                        "inputSpec": [],
+                        "outputSpec": [{"name": test_file_name, "class": "file"}],
+                        "runSpec": {"code": code_str, "interpreter": "python2.7"},
+                        "version": "1.0.0"}
+            applet_id = dxpy.api.applet_new(app_spec)['id']
+            applet = dxpy.DXApplet(applet_id)
+            job = applet.run({}, project=temp_project_id)
+            job.wait_on_done()
+            job_id = job.get_id()
+
+            # Case: Correctly specify "<job_id>:<output_field>"; save to file.
+            with chdir(tempfile.mkdtemp()):
+                run("dx download " + job_id + ":" + test_file_name)
+                with open(test_file_name) as fh:
+                    result = fh.read()
+                    self.assertEqual(expected_result, result)
+
+            # Case: Correctly specify file id; print to stdout.
+            test_file_id = dxpy.DXFile(job.describe()['output'][test_file_name]).get_id()
+            result = run("dx download " + test_file_id + " -o -").strip()
+            self.assertEqual(expected_result, result)
+
+            # Case: Correctly specify file name; print to stdout.
+            result = run("dx download " + test_file_name + " -o -").strip()
+            self.assertEqual(expected_result, result)
+
+            # Case: Correctly specify "<job_id>:<output_field>"; print to stdout.
+            result = run("dx download " + job_id + ":" + test_file_name + " -o -").strip()
+            self.assertEqual(expected_result, result)
+
+            # Case: File does not exist.
+            with self.assertSubprocessFailure(stderr_regexp="Could not resolve", exit_code=1):
+                run("dx download foo -o -")
+
+            # Case: Invalid output field name when specifying <job_id>:<output_field>.
+            with self.assertSubprocessFailure(stderr_regexp="Could not find", exit_code=3):
+                run("dx download " + job_id + ":foo -o -")
 
 class TestDXClientDescribe(DXTestCase):
     def test_projects(self):
@@ -2115,6 +2249,175 @@ class TestDXClientFind(DXTestCase):
         # Property keys must be nonempty
         with self.assertSubprocessFailure(stderr_regexp='nonempty strings', exit_code=3):
             run("dx find data --property =bar")
+
+    def test_dx_find_data_by_scope(self):
+        # Name of temporary project to use in test cases.
+        test_projectname = 'Test-Project-PTFM-7023'
+
+        # Tests for deprecated --project flag.
+
+        # Case: --project specified.
+        test_dirname = '/test-folder-PTFM-7023-01'
+        test_recordname = '/test-record-01'
+        with temporary_project(test_projectname) as temp_project:
+            test_projectid = temp_project.get_id()
+            record_id = run('dx new record -p --brief ' + test_projectid + ':' + test_dirname +
+                            test_recordname).strip()
+            found_record_id = run('dx find data --brief --project ' + test_projectid).strip()
+            self.assertEqual(found_record_id, test_projectid + ':' + record_id)
+
+        # Tests for deprecated --folder flag.
+
+        # Case: --folder specified, WORKSPACE_ID set.
+        test_dirname = '/test-folder-PTFM-7023-02'
+        test_subdirname = '/test-subfolder'
+        test_recordname = '/test-record-02'
+        record_ids = [run('dx new record -p --brief ' + test_dirname + test_recordname).strip(),
+                      run('dx new record -p --brief ' + test_dirname + test_subdirname + test_recordname).strip()]
+        found_record_ids = run('dx find data --brief --folder ' + test_dirname).strip().split('\n')
+        self.assertEqual(set(dxpy.WORKSPACE_ID + ':' + record_id for record_id in record_ids), set(found_record_ids))
+
+        # Case: --folder and --project specified.
+        test_dirname = '/test-folder-PTFM-7023-03'
+        test_recordname = '/test-record-03'
+        with temporary_project(test_projectname) as temp_project:
+            test_projectid = temp_project.get_id()
+            record_id = run('dx new record -p --brief ' + test_projectid + ':' + test_dirname +
+                            test_recordname).strip()
+            found_record_id = run('dx find data --brief --project ' + test_projectid + ' --folder ' +
+                                  test_dirname).strip()
+            self.assertEqual(found_record_id, test_projectid + ':' + record_id)
+
+        # Case: --folder and --norecurse specified, WORKSPACE_ID set.
+        test_dirname = '/test-folder-PTFM-7023-04'
+        test_subdirname = '/test-subfolder'
+        test_recordname = '/test-record-04'
+        record_id = run('dx new record -p --brief ' + test_dirname + test_recordname).strip()
+        run('dx new record -p --brief ' + test_dirname + test_subdirname + test_recordname)
+        found_record_id = run('dx find data --brief --folder ' + test_dirname + ' --norecurse').strip()
+        self.assertEqual(found_record_id, dxpy.WORKSPACE_ID + ':' + record_id)
+
+        # Case: --folder, --project, and --norecurse specified.
+        test_dirname = '/test-folder-PTFM-7023-05'
+        test_subdirname = '/test-subfolder'
+        test_recordname = '/test-record-05'
+        with temporary_project(test_projectname) as temp_project:
+            test_projectid = temp_project.get_id()
+            record_id = run('dx new record -p --brief ' + test_projectid + ':' + test_dirname +
+                            test_recordname).strip()
+            run('dx new record -p --brief ' + test_projectid + ':' + test_dirname + test_subdirname + test_recordname)
+            found_record_id = run('dx find data --brief --project ' + test_projectid + ' --folder ' +
+                                  test_dirname + ' --norecurse').strip()
+            self.assertEqual(found_record_id, test_projectid + ':' + record_id)
+
+        # Tests for --path flag.
+
+        # Case: --path specified, WORKSPACE_ID set.
+        test_dirname = '/test-folder-PTFM-7023-06'
+        test_subdirname = '/test-subfolder'
+        test_recordname = '/test-record-06'
+        run('dx new record -p --brief ' + test_recordname)
+        record_ids = [run('dx new record -p --brief ' + test_dirname + test_recordname).strip(),
+                      run('dx new record -p --brief ' + test_dirname + test_subdirname + test_recordname).strip()]
+        found_record_ids = run('dx find data --brief --path ' + test_dirname).strip().split('\n')
+        self.assertEqual(set(dxpy.WORKSPACE_ID + ':' + record_id for record_id in record_ids), set(found_record_ids))
+
+        # Case: --path and --project specified.
+        test_dirname = '/test-folder-PTFM-7023-07'
+        test_recordname = '/test-record-07'
+        with temporary_project(test_projectname) as temp_project:
+            test_projectid = temp_project.get_id()
+            run('dx new record -p --brief ' + test_recordname)
+            record_id = run('dx new record -p --brief ' + test_projectid + ':' + test_dirname +
+                            test_recordname).strip()
+            found_record_id = run('dx find data --brief --project ' + test_projectid + ' --path ' +
+                                  test_dirname).strip()
+            self.assertEqual(found_record_id, test_projectid + ':' + record_id)
+
+        # Case: --path and --norecurse specified, WORKSPACE_ID set.
+        test_dirname = '/test-folder-PTFM-7023-08'
+        test_subdirname = '/test-subfolder'
+        test_recordname = '/test-record-08'
+        record_id = run('dx new record -p --brief ' + test_dirname + test_recordname).strip()
+        run('dx new record -p --brief ' + test_dirname + test_subdirname + test_recordname)
+        found_record_id = run('dx find data --brief --path ' + test_dirname + ' --norecurse').strip()
+        self.assertEqual(found_record_id, dxpy.WORKSPACE_ID + ':' + record_id)
+
+        # Case: --path, --project, and --norecurse specified.
+        test_dirname = '/test-folder-PTFM-7023-09'
+        test_subdirname = '/test-subfolder'
+        test_recordname = '/test-record-09'
+        with temporary_project(test_projectname) as temp_project:
+            test_projectid = temp_project.get_id()
+            record_id = run('dx new record -p --brief ' + test_projectid + ':' + test_dirname +
+                            test_recordname).strip()
+            run('dx new record -p --brief ' + test_projectid + ':' + test_dirname + test_subdirname + test_recordname)
+            found_record_id = run('dx find data --brief --project ' + test_projectid + ' --path ' +
+                                  test_dirname + ' --norecurse').strip()
+            self.assertEqual(found_record_id, test_projectid + ':' + record_id)
+
+        # Case: --path specified as PROJECTID:FOLDERPATH.
+        test_dirname = '/test-folder-PTFM-7023-10'
+        test_recordname = '/test-record-10'
+        with temporary_project(test_projectname) as temp_project:
+            test_projectid = temp_project.get_id()
+            record_ids = [run('dx new record -p --brief ' + test_projectid + ':' + test_dirname +
+                              test_recordname).strip(),
+                          run('dx new record -p --brief ' + test_projectid + ':' + test_dirname +
+                              test_subdirname + test_recordname).strip()]
+
+            # Case: --norecurse not specified.
+            found_record_id = run('dx find data --brief --path ' + test_projectid + ':' +
+                                  test_dirname).strip().split('\n')
+            self.assertEqual(set(found_record_id), set(test_projectid + ':' + record_id for record_id in record_ids))
+
+            # Case: --norecurse specified.
+            found_record_id = run('dx find data --brief --path ' + test_projectid + ':' + test_dirname +
+                                  ' --norecurse').strip()
+            self.assertEqual(found_record_id, test_projectid + ':' + record_ids[0])
+
+        # Case: --path specified as relative path, WORKSPACE_ID set.
+        test_dirname = '/test-folder-PTFM-7023-12'
+        test_subdirname = '/test-subfolder'
+        test_recordname = '/test-record-12'
+        run('dx new record -p --brief ' + test_recordname)
+        record_id = run('dx new record -p --brief ' + test_dirname + test_subdirname + test_recordname).strip()
+        run('dx cd ' + test_dirname)
+        found_record_id = run('dx find data --brief --path ' + test_subdirname[1:]).strip()
+        self.assertEqual(found_record_id, dxpy.WORKSPACE_ID + ':' + record_id)
+
+        run('dx clearenv')
+        test_dirname = '/test-folder-PTFM-7023-14'
+        test_recordname = '/test-record-14'
+        with temporary_project(test_projectname) as temp_project, select_project(None):
+            test_projectid = temp_project.get_id()
+            run('dx new record -p --brief ' + test_projectid + ':' + test_dirname + test_recordname)
+
+            # Case: --path specified, WORKSPACE_ID not set (fail).
+            with self.assertSubprocessFailure(stderr_regexp="if a project is not specified", exit_code=1):
+                run('dx find data --brief --path ' + test_dirname)
+
+            # Case: --project and --path PROJECTID:FOLDERPATH specified (fail).
+            with self.assertSubprocessFailure(stderr_regexp="Cannot supply both --project and --path " +
+                                              "PROJECTID:FOLDERPATH", exit_code=3):
+                run('dx find data --brief --project ' + test_projectid + ' --path ' + test_projectid + ':' +
+                    test_dirname)
+
+            # Case: --folder and --path specified (fail).
+            with self.assertSubprocessFailure(stderr_regexp="Cannot supply both --folder and --path", exit_code=3):
+                run('dx find data --brief --folder ' + test_projectid + ':' + test_dirname + ' --path ' +
+                    test_projectid + ':' + test_dirname)
+
+    def test_dx_find_projects(self):
+        unique_project_name = 'dx find projects test ' + str(time.time())
+        with temporary_project(unique_project_name) as unique_project:
+            self.assertEqual(run("dx find projects --name " + pipes.quote(unique_project_name)),
+                             unique_project.get_id() + ' : ' + unique_project_name + ' (ADMINISTER)\n')
+            self.assertEqual(run("dx find projects --brief --name " + pipes.quote(unique_project_name)),
+                             unique_project.get_id() + '\n')
+            json_output = json.loads(run("dx find projects --json --name " + pipes.quote(unique_project_name)))
+            self.assertEqual(len(json_output), 1)
+            self.assertEqual(json_output[0]['id'], unique_project.get_id())
 
     def test_dx_find_projects_by_tag(self):
         other_project_id = run("dx new project other --brief").strip()
@@ -3330,15 +3633,10 @@ def main(in1):
             "version": "1.0.0"
             }
         app_dir = self.write_app_directory("archive_in_another_project", json.dumps(app_spec), "code.py")
-        temp_project_id = check_output(
-            "dx new project '{p}' --brief".format(p="Temporary working project"), shell=True).strip()
-        try:
-            check_output("dx select {p}".format(p=temp_project_id), shell=True)
+
+        with temporary_project("Temporary working project", select=True) as temp_project:
             run("dx build -d {p}: {app_dir}".format(p=self.proj_id, app_dir=app_dir))
             run("dx build --archive -d {p}: {app_dir}".format(p=self.proj_id, app_dir=app_dir))
-        finally:
-            check_output("dx select {p}".format(p=self.proj_id), shell=True)
-            check_output("dx rmproject --yes {p}".format(p=temp_project_id), shell=True)
 
 
 class TestDXBuildReportHtml(unittest.TestCase):

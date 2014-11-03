@@ -18484,6 +18484,190 @@ public final class DXAPI {
     }
 
     /**
+     * Invokes the projectUpdateSponsorship method with an empty input, deserializing to an object of the specified class.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship">API specification</a>.
+     *
+     * @param objectId ID of the object to operate on
+     * @param outputClass class to deserialize the server reponse to
+     *
+     * @return Response object
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     */
+    public static <T> T projectUpdateSponsorship(String objectId, Class<T> outputClass) {
+        return projectUpdateSponsorship(objectId, mapper.createObjectNode(), outputClass);
+    }
+    /**
+     * Invokes the projectUpdateSponsorship method with the given input, deserializing to an object of the specified class.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship">API specification</a>.
+     *
+     * @param objectId ID of the object to operate on
+     * @param inputObject input object (to be JSON serialized to an input hash)
+     * @param outputClass class to deserialize the server reponse to
+     *
+     * @return Response object
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     */
+    public static <T> T projectUpdateSponsorship(String objectId, Object inputObject, Class<T> outputClass) {
+        return DXJSON.safeTreeToValue(
+                new DXHTTPRequest().request("/" + objectId + "/" + "updateSponsorship",
+                        mapper.valueToTree(inputObject), RetryStrategy.SAFE_TO_RETRY), outputClass);
+    }
+    /**
+     * Invokes the projectUpdateSponsorship method with an empty input using the given environment, deserializing to an object of the specified class.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship">API specification</a>.
+     *
+     * @param objectId ID of the object to operate on
+     * @param outputClass class to deserialize the server reponse to
+     * @param env environment object specifying the auth token and remote server and protocol
+     *
+     * @return Response object
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     */
+    public static <T> T projectUpdateSponsorship(String objectId, Class<T> outputClass, DXEnvironment env) {
+        return projectUpdateSponsorship(objectId, mapper.createObjectNode(), outputClass, env);
+    }
+    /**
+     * Invokes the projectUpdateSponsorship method with the given input using the given environment, deserializing to an object of the specified class.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship">API specification</a>.
+     *
+     * @param objectId ID of the object to operate on
+     * @param inputObject input object (to be JSON serialized to an input hash)
+     * @param outputClass class to deserialize the server reponse to
+     * @param env environment object specifying the auth token and remote server and protocol
+     *
+     * @return Response object
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     */
+    public static <T> T projectUpdateSponsorship(String objectId, Object inputObject, Class<T> outputClass, DXEnvironment env) {
+        return DXJSON.safeTreeToValue(
+            new DXHTTPRequest(env).request("/" + objectId + "/" + "updateSponsorship",
+                    mapper.valueToTree(inputObject), RetryStrategy.SAFE_TO_RETRY), outputClass);
+    }
+
+    /**
+     * Invokes the projectUpdateSponsorship method.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship">API specification</a>.
+     *
+     * @param objectId ID of the object to operate on
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     *
+     * @deprecated Use {@link #projectUpdateSponsorship(String, Class)} instead and supply your own class to deserialize to.
+     */
+    @Deprecated
+    public static JsonNode projectUpdateSponsorship(String objectId) {
+        return projectUpdateSponsorship(objectId, mapper.createObjectNode());
+    }
+    /**
+     * Invokes the projectUpdateSponsorship method with the specified parameters.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship">API specification</a>.
+     *
+     * @param objectId ID of the object to operate on
+     * @param inputParams input parameters to the API call
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     *
+     * @deprecated Use {@link #projectUpdateSponsorship(String, Object, Class)} instead and supply your own class to deserialize to.
+     */
+    @Deprecated
+    public static JsonNode projectUpdateSponsorship(String objectId, JsonNode inputParams) {
+        return new DXHTTPRequest().request("/" + objectId + "/" + "updateSponsorship", inputParams,
+                RetryStrategy.SAFE_TO_RETRY);
+    }
+    /**
+     * Invokes the projectUpdateSponsorship method with the specified environment.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship">API specification</a>.
+     *
+     * @param objectId ID of the object to operate on
+     * @param env environment object specifying the auth token and remote server and protocol
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     *
+     * @deprecated Use {@link #projectUpdateSponsorship(String, Class, DXEnvironment)} instead and supply your own class to deserialize to.
+     */
+    @Deprecated
+    public static JsonNode projectUpdateSponsorship(String objectId, DXEnvironment env) {
+        return projectUpdateSponsorship(objectId, mapper.createObjectNode(), env);
+    }
+    /**
+     * Invokes the projectUpdateSponsorship method with the specified environment and parameters.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship">API specification</a>.
+     *
+     * @param objectId ID of the object to operate on
+     * @param inputParams input parameters to the API call
+     * @param env environment object specifying the auth token and remote server and protocol
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     *
+     * @deprecated Use {@link #projectUpdateSponsorship(String, Object, Class, DXEnvironment)} instead and supply your own class to deserialize to.
+     */
+    @Deprecated
+    public static JsonNode projectUpdateSponsorship(String objectId, JsonNode inputParams, DXEnvironment env) {
+        return new DXHTTPRequest(env).request("/" + objectId + "/" + "updateSponsorship", inputParams,
+                RetryStrategy.SAFE_TO_RETRY);
+    }
+
+    /**
      * Invokes the projectNew method with an empty input, deserializing to an object of the specified class.
      *
      * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject%2Fnew">API specification</a>.
@@ -22576,6 +22760,179 @@ public final class DXAPI {
     @Deprecated
     public static JsonNode systemFindProjectMembers(JsonNode inputParams, DXEnvironment env) {
         return new DXHTTPRequest(env).request("/system/findProjectMembers", inputParams, RetryStrategy.SAFE_TO_RETRY);
+    }
+
+    /**
+     * Invokes the systemGlobalSearch method with an empty input, deserializing to an object of the specified class.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch">API specification</a>.
+     *
+     * @param outputClass class to deserialize the server reponse to
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     */
+    public static <T> T systemGlobalSearch(Class<T> outputClass) {
+        return systemGlobalSearch(mapper.createObjectNode(), outputClass);
+    }
+    /**
+     * Invokes the systemGlobalSearch method with an empty input using the specified environment, deserializing to an object of the specified class.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch">API specification</a>.
+     *
+     * @param outputClass class to deserialize the server reponse to
+     * @param env environment object specifying the auth token and remote server and protocol
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     */
+    public static <T> T systemGlobalSearch(Class<T> outputClass, DXEnvironment env) {
+        return systemGlobalSearch(mapper.createObjectNode(), outputClass, env);
+    }
+    /**
+     * Invokes the systemGlobalSearch method with the specified input, deserializing to an object of the specified class.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch">API specification</a>.
+     *
+     * @param inputObject input object (to be JSON serialized to an input hash)
+     * @param outputClass class to deserialize the server reponse to
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     */
+    public static <T> T systemGlobalSearch(Object inputObject, Class<T> outputClass) {
+        return DXJSON.safeTreeToValue(
+                new DXHTTPRequest().request("/system/globalSearch", mapper.valueToTree(inputObject), RetryStrategy.SAFE_TO_RETRY),
+                outputClass);
+    }
+    /**
+     * Invokes the systemGlobalSearch method with the specified input using the specified environment, deserializing to an object of the specified class.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch">API specification</a>.
+     *
+     * @param inputObject input object (to be JSON serialized to an input hash)
+     * @param outputClass class to deserialize the server reponse to
+     * @param env environment object specifying the auth token and remote server and protocol
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     */
+    public static <T> T systemGlobalSearch(Object inputObject, Class<T> outputClass, DXEnvironment env) {
+        return DXJSON.safeTreeToValue(
+                new DXHTTPRequest(env).request("/system/globalSearch", mapper.valueToTree(inputObject), RetryStrategy.SAFE_TO_RETRY),
+                outputClass);
+    }
+
+    /**
+     * Invokes the systemGlobalSearch method.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch">API specification</a>.
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     *
+     * @deprecated Use {@link #systemGlobalSearch(Class)} instead and supply your own class to deserialize to.
+     */
+    @Deprecated
+    public static JsonNode systemGlobalSearch() {
+        return systemGlobalSearch(mapper.createObjectNode());
+    }
+    /**
+     * Invokes the systemGlobalSearch method with the specified input parameters.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch">API specification</a>.
+     *
+     * @param inputParams input parameters to the API call
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     *
+     * @deprecated Use {@link #systemGlobalSearch(Object, Class)} instead and supply your own class to deserialize to.
+     */
+    @Deprecated
+    public static JsonNode systemGlobalSearch(JsonNode inputParams) {
+        return new DXHTTPRequest().request("/system/globalSearch", inputParams, RetryStrategy.SAFE_TO_RETRY);
+    }
+    /**
+     * Invokes the systemGlobalSearch method with the specified environment.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch">API specification</a>.
+     *
+     * @param env environment object specifying the auth token and remote server and protocol
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     *
+     * @deprecated Use {@link #systemGlobalSearch(Class, DXEnvironment)} instead and supply your own class to deserialize to.
+     */
+    @Deprecated
+    public static JsonNode systemGlobalSearch(DXEnvironment env) {
+        return systemGlobalSearch(mapper.createObjectNode(), env);
+    }
+    /**
+     * Invokes the systemGlobalSearch method with the specified environment and input parameters.
+     *
+     * <p>For more information about this method, see the <a href="https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch">API specification</a>.
+     *
+     * @param inputParams input parameters to the API call
+     * @param env environment object specifying the auth token and remote server and protocol
+     *
+     * @return Server response parsed from JSON
+     *
+     * @throws DXAPIException
+     *             If the server returns a complete response with an HTTP status
+     *             code other than 200 (OK).
+     * @throws DXHTTPException
+     *             If an error occurs while making the HTTP request or obtaining
+     *             the response (includes HTTP protocol errors).
+     *
+     * @deprecated Use {@link #systemGlobalSearch(Object, Class, DXEnvironment)} instead and supply your own class to deserialize to.
+     */
+    @Deprecated
+    public static JsonNode systemGlobalSearch(JsonNode inputParams, DXEnvironment env) {
+        return new DXHTTPRequest(env).request("/system/globalSearch", inputParams, RetryStrategy.SAFE_TO_RETRY);
     }
 
     /**
