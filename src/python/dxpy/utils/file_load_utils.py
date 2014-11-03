@@ -90,6 +90,7 @@ import dxpy
 from dxpy.compat import environ
 from ..exceptions import DXError
 
+
 def get_input_dir(expand_home_var=True):
     '''
     :param expand_home_var: if true, expand the home directory to a full path
@@ -104,6 +105,7 @@ def get_input_dir(expand_home_var=True):
         home_dir = "$HOME"
     idir = os.path.join(home_dir, 'in')
     return idir
+
 
 def get_output_dir(expand_home_var=True):
     '''
@@ -121,6 +123,7 @@ def get_output_dir(expand_home_var=True):
     odir = os.path.join(home_dir, 'out')
     return odir
 
+
 def get_input_json_file():
     """
     :rtype: string
@@ -129,6 +132,7 @@ def get_input_json_file():
     home_dir = os.environ.get('HOME')
     return os.path.join(home_dir, "job_input.json")
 
+
 def get_output_json_file():
     """
     :rtype: string
@@ -136,6 +140,7 @@ def get_output_json_file():
     """
     home_dir = os.environ.get('HOME')
     return os.path.join(home_dir, "job_output.json")
+
 
 def rm_output_json_file():
     """ Warning: this is not for casual use.
@@ -150,6 +155,7 @@ def rm_output_json_file():
         else:
             raise
 
+
 def ensure_dir(path):
     """
     :param path: path to directory to be created
@@ -163,6 +169,7 @@ def ensure_dir(path):
         # The path exists, check that it is not a file
         if os.path.isfile(path):
             raise Exception("Path %s already exists, and it is a file, not a directory" % path)
+
 
 def make_unix_filename(fname):
     """
@@ -182,9 +189,11 @@ def make_unix_filename(fname):
         raise DXError("Invalid filename {}".format(fname))
     return fname.replace('/', '%2F')
 
+
 ## filter from a dictionary a list of matching keys
 def filter_dict(dict_, excl_keys):
     return {k: v for k, v in dict_.iteritems() if k not in excl_keys}
+
 
 def get_job_input_filenames(job_input_file):
     """Extract list of files, returns a set of directories to create, and
@@ -256,6 +265,7 @@ def get_job_input_filenames(job_input_file):
     ## create a dictionary of the all non-file elements
     rest_hash = {key: val for key, val in job_input.iteritems() if key not in files}
     return dirs, files, rest_hash
+
 
 def analyze_bash_vars(job_input_file):
     '''
@@ -379,6 +389,7 @@ def _gen_bash_vars_old(job_input_file):
     for k, v in json.load(open(job_input_file)).iteritems():
         key_val_map[k] = old_string_of_elem(v)
     return key_val_map
+
 
 def _gen_bash_var_lines_old(job_input_file):
     ''' The original old code for generating bash variables. Used for comparison purposes. '''
