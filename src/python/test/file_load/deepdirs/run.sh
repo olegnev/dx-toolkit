@@ -1,4 +1,6 @@
 main() {
+    set -x
+
 #    dx-download-all-inputs
 
     gene_d="out/genes"
