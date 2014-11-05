@@ -65,7 +65,7 @@ def create_file_in_project(fname, trg_proj_id, folder=None):
         dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id)
     else:
         dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id, folder=folder)
-    return dxfile.get_id(), fname
+    return dxfile.get_id()
 
 
 def create_project():
@@ -4106,7 +4106,8 @@ class TestDXCp(DXTestCase):
         cls.counter += 1
         return "file_{}".format(cls.counter)
 
-    # make sure a folder (path) has the same contents in the two projects
+    # Make sure a folder (path) has the same contents in the two projects.
+    # Note: the contents of the folders are not listed recursively.
     def verify_folders_are_equal(self, path):
         listing_proj1 = list_folder(self.proj_id1, path)
         listing_proj2 = list_folder(self.proj_id2, path)
@@ -4124,14 +4125,15 @@ class TestDXCp(DXTestCase):
     def test_file_with_same_name(self):
         create_folder_in_project(self.proj_id1, "/earthsea")
         create_folder_in_project(self.proj_id2, "/earthsea")
-        file_id, _ = create_file_in_project(self.gen_uniq_fname(), self.proj_id1, folder="/earthsea")
+        file_id = create_file_in_project(self.gen_uniq_fname(), self.proj_id1, folder="/earthsea")
         run("dx cp {p1}:/earthsea/{f} {p2}:/earthsea/".format(f=file_id, p1=self.proj_id1, p2=self.proj_id2))
         self.verify_folders_are_equal("/earthsea")
 
     # copy and rename
     #   dx cp  proj-1111:/file-1111   proj-2222:/file-2222
     def test_cp_rename(self):
-        file_id, basename = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
+        basename = self.gen_uniq_fname()
+        file_id = create_file_in_project(basename, self.proj_id1)
         run("dx cp {p1}:/{f1} {p2}:/{f2}".format(f1=basename, f2="AAA.txt",
                                                  p1=self.proj_id1, p2=self.proj_id2))
         self.verify_file_ids_are_equal(basename, path2="AAA.txt")
@@ -4139,9 +4141,12 @@ class TestDXCp(DXTestCase):
     # multiple arguments
     #   dx cp  proj-1111:/file-1111 proj-2222:/file-2222 proj-3333:/
     def test_multiple_args(self):
-        _, fname1 = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
-        _, fname2 = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
-        _, fname3 = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
+        fname1 = self.gen_uniq_fname()
+        fname2 = self.gen_uniq_fname()
+        fname3 = self.gen_uniq_fname()
+        create_file_in_project(fname1, self.proj_id1)
+        create_file_in_project(fname2, self.proj_id1)
+        create_file_in_project(fname3, self.proj_id1)
         run("dx cp {p1}:/{f1} {p1}:/{f2} {p1}:/{f3} {p2}:/".
             format(f1=fname1, f2=fname2, f3=fname3, p1=self.proj_id1, p2=self.proj_id2))
         self.verify_file_ids_are_equal(fname1)
@@ -4184,14 +4189,14 @@ class TestDXCp(DXTestCase):
     #   l
     #   ...
     def test_copy_overwrite(self):
-        file_id1, fname1 = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
+        fname1 = self.gen_uniq_fname()
+        file_id1 = create_file_in_project(fname1, self.proj_id1)
         run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=self.proj_id1, f=fname1, p2=self.proj_id2))
         output = run("dx cp {p1}:/{f} {p2}:/{f}".format(p1=self.proj_id1,
                                                         f=fname1, p2=self.proj_id2))
         self.assertIn("destination", output)
         self.assertIn("already existed", output)
-        # uncomment this check, once the implementation improves
-        #self.assertIn(output, fileID1)
+        self.assertIn(file_id1, output)
 
     @unittest.skip("PTFM-11906 This doesn't work yet.")
     def test_file_in_other_project(self):
@@ -4200,9 +4205,9 @@ class TestDXCp(DXTestCase):
         Main idea: create projects A and B. Create a file in A, and copy it to project B,
         -without- specifying a source project.
 
-        This could work, with some enhacements to the 'dx cp' implementation.
+        This could work, with some enhancements to the 'dx cp' implementation.
         '''
-        file_id, _ = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
+        file_id  = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
         run('dx cp ' + file_id + ' ' + self.proj_id2)
 
     @unittest.skipUnless(testutil.TEST_ENV,
@@ -4215,7 +4220,7 @@ class TestDXCp(DXTestCase):
         '''
         # create a file in the current project
         #  -- how do we get the current project id?
-        file_id, _ = create_file_in_project(self.gen_uniq_fname(), self.project)
+        file_id = create_file_in_project(self.gen_uniq_fname(), self.project)
 
         # Unset environment
         from dxpy.utils.env import write_env_var
