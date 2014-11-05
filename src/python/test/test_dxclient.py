@@ -4207,7 +4207,7 @@ class TestDXCp(DXTestCase):
 
         This could work, with some enhancements to the 'dx cp' implementation.
         '''
-        file_id  = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
+        file_id = create_file_in_project(self.gen_uniq_fname(), self.proj_id1)
         run('dx cp ' + file_id + ' ' + self.proj_id2)
 
     @unittest.skipUnless(testutil.TEST_ENV,
