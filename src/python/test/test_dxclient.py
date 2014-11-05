@@ -62,9 +62,9 @@ def overrideEnvironment(**kwargs):
 def create_file_in_project(fname, trg_proj_id, folder=None):
     data = "foo"
     if folder is None:
-        dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id)
+        dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id, wait_on_close=True)
     else:
-        dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id, folder=folder)
+        dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id, folder=folder, wait_on_close=True)
     return dxfile.get_id()
 
 
@@ -4180,7 +4180,7 @@ class TestDXCp(DXTestCase):
             run("dx cp {p1}:/baz {p2}:/".format(p1=self.proj_id1, p2=self.proj_id2))
         self.verify_folders_are_equal("/baz")
 
-    # Passes, but gives a weird error message:
+    # PTFM-13569: This used to give a weird error message, like so:
     # dx cp project-BV80zyQ0Ffb7fj64v03fffqX:/foo/XX.txt  project-BV80vzQ0P9vk785K1GgvfZKv:/foo/XX.txt
     # The following objects already existed in the destination container and were not copied:
     #   [
