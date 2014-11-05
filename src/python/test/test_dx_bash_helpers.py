@@ -122,7 +122,7 @@ class TestDXBashHelpers(DXTestCase):
             env = update_environ(DX_PROJECT_CONTEXT_ID=p.get_id())
 
             # Upload some files for use by the applet
-            dxpy.upload_string("1234\n", project=p.get_id(), name="A.txt")
+            dxpy.upload_string("1234\n", project=p.get_id(), name="A.txt", wait_on_close=True)
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
@@ -145,8 +145,8 @@ class TestDXBashHelpers(DXTestCase):
             env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
             # Upload some files for use by the applet
-            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt")
-            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt")
+            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt", wait_on_close=True)
+            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt", wait_on_close=True)
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
@@ -164,8 +164,8 @@ class TestDXBashHelpers(DXTestCase):
             env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
              # Upload some files for use by the applet
-            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt")
-            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt")
+            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt", wait_on_close=True)
+            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt", wait_on_close=True)
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
@@ -234,8 +234,8 @@ class TestDXBashHelpers(DXTestCase):
             env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
             # Upload some files for use by the applet
-            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt")
-            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt")
+            dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt", wait_on_close=True)
+            dxpy.upload_string("ABCD\n", project=dxproj.get_id(), name="B.txt", wait_on_close=True)
 
             # Build the applet, patching in the bash helpers from the
             # local checkout
