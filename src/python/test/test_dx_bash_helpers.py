@@ -261,14 +261,14 @@ class TestDXBashHelpers(DXTestCase):
             applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'prefix_patterns'), dxproj.get_id())
 
             # Run the applet
-            applet_args = [ '-iseq1=A.bar',  # A
-                            '-iseq2=A.json.dot.bar', #  A
-                            '-igene=A.vcf.pam', # A
-                            '-imap=A.foo.bar', # A.foo
-                            '-imap2=fooxxx.bam', # fooxxx
-                            '-imap3=A.bar', # A
-                            '-imap4=A.bar.gz', # A
-                            '-imulti=x13year23.sam' # x13year23
+            applet_args = [ '-iseq1=A.bar',
+                            '-iseq2=A.json.dot.bar',
+                            '-igene=A.vcf.pam',
+                            '-imap=A.foo.bar',
+                            '-imap2=fooxxx.bam',
+                            '-imap3=A.bar',
+                            '-imap4=A.bar.gz',
+                            '-imulti=x13year23.sam'
             ]
             cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
             cmd_args.extend(applet_args)

@@ -395,14 +395,14 @@ class TestDXBashHelpers(DXTestCase):
         filenames = ["A.bar", "A.json.dot.bar", "A.vcf.pam", "A.foo.bar", "fooxxx.bam", "A.bar.gz", "x13year23.sam"]
         for fname in filenames:
             dxpy.upload_string(buf, name=fname, wait_on_close=True)
-        self.run_test_app_locally('prefix_patterns', [ '-iseq1=A.bar',  # A
-                                                       '-iseq2=A.json.dot.bar', #  A
-                                                       '-igene=A.vcf.pam', # A
-                                                       '-imap=A.foo.bar', # A.foo
-                                                       '-imap2=fooxxx.bam', # fooxxx
-                                                       '-imap3=A.bar', # A
-                                                       '-imap4=A.bar.gz', # A
-                                                       '-imulti=x13year23.sam' # x13year23
+        self.run_test_app_locally('prefix_patterns', [ '-iseq1=A.bar',
+                                                       '-iseq2=A.json.dot.bar',
+                                                       '-igene=A.vcf.pam',
+                                                       '-imap=A.foo.bar',
+                                                       '-imap2=fooxxx.bam',
+                                                       '-imap3=A.bar',
+                                                       '-imap4=A.bar.gz',
+                                                       '-imulti=x13year23.sam'
                                                    ])
 
     def test_deepdirs(self):
