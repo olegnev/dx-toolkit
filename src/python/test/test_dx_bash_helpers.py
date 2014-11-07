@@ -252,7 +252,8 @@ class TestDXBashHelpers(DXTestCase):
         """
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
             env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
-            filenames = ["A.bar", "A.json.dot.bar", "A.vcf.pam", "A.foo.bar", "fooxxx.bam", "A.bar.gz", "x13year23.sam"]
+            filenames = ["A.bar", "A.json.dot.bar", "A.vcf.pam", "A.foo.bar",
+                         "fooxxx.bam", "A.bar.gz", "x13year23.sam"]
             for fname in filenames:
                 dxpy.upload_string("1234", project=dxproj.get_id(), name=fname)
 
@@ -261,15 +262,14 @@ class TestDXBashHelpers(DXTestCase):
             applet_id = build_app_with_bash_helpers(os.path.join(TEST_APPS, 'prefix_patterns'), dxproj.get_id())
 
             # Run the applet
-            applet_args = [ '-iseq1=A.bar',
-                            '-iseq2=A.json.dot.bar',
-                            '-igene=A.vcf.pam',
-                            '-imap=A.foo.bar',
-                            '-imap2=fooxxx.bam',
-                            '-imap3=A.bar',
-                            '-imap4=A.bar.gz',
-                            '-imulti=x13year23.sam'
-            ]
+            applet_args = ['-iseq1=A.bar',
+                           '-iseq2=A.json.dot.bar',
+                           '-igene=A.vcf.pam',
+                           '-imap=A.foo.bar',
+                           '-imap2=fooxxx.bam',
+                           '-imap3=A.bar',
+                           '-imap4=A.bar.gz',
+                           '-imulti=x13year23.sam']
             cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
