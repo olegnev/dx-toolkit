@@ -289,7 +289,7 @@ def get_input_spec_patterns():
 
     # convert to a dictionary. Each entry in the input spec
     # has {name, class} attributes.
-    if input_spec == None:
+    if input_spec is None:
         return None
 
     # For each field name, return its patterns.
