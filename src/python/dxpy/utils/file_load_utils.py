@@ -295,7 +295,7 @@ def get_input_spec_patterns():
     # For each field name, return its patterns.
     # Make sure a pattern is legal, ignore illegal patterns.
     def is_legal_pattern(pattern):
-        return pattern.find("*") >= 0
+        return "*" in pattern
     patterns_dict = {}
     for spec in input_spec:
         name = spec['name']
