@@ -319,6 +319,7 @@ def choose_shorter_string(p, q):
         return q
     return p
 
+
 def analyze_bash_vars(job_input_file, job_homedir):
     '''
     This function examines the input file, and calculates variables to
