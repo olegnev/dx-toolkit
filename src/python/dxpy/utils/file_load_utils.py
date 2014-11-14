@@ -93,7 +93,7 @@ from ..exceptions import DXError
 
 def get_input_dir(job_homedir=None):
     '''
-    :param expand_home_var: if true, expand the home directory to a full path
+    :param job_homedir: explicit value for home directory, used for testing purposes
     :rtype: string
     :returns: path to input directory
 
@@ -109,7 +109,7 @@ def get_input_dir(job_homedir=None):
 
 def get_output_dir(job_homedir=None):
     '''
-    :param expand_home_var: if true, expand the home directory to a full path
+    :param job_homedir: explicit value for home directory, used for testing purposes
     :rtype: string
     :returns: path to output directory
 
@@ -404,6 +404,7 @@ def analyze_bash_vars(job_input_file, job_homedir):
 def gen_bash_vars(job_input_file, job_homedir=None, check_name_collision=True):
     """
     :param job_input_file: path to a JSON file describing the job inputs
+    :param job_homedir: path to home directory, used for testing purposes
     :param check_name_collision: should we check for name collisions?
     :return: list of lines
     :rtype: list of strings

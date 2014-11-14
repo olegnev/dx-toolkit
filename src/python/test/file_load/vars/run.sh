@@ -25,12 +25,9 @@ main() {
 
     # checking that the path variable really works
     dx download "$seq1" -o seq1
-    DIFF=$(diff "$seq1_path" seq1)
-    if [ "$DIFF" != "" ]
-    then
-        echo "Download sequential and parallel differ"
-        exit 1
-    fi
+    diff "$seq1_path" seq1
+    dx download "$seq2" -o seq2
+    diff "$seq2_path" seq2
 
     dx-upload-all-outputs
 }
