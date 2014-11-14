@@ -19,12 +19,17 @@ main() {
     check_array_var_defined "$genes_name" "( A.txt A.txt )"
     check_array_var_defined "$genes_prefix" "( A A )"
 
-    # Paths are based at $HOME, only on the cloud
-    if [[ -z DX_TEST_JOB_HOMEDIRS ]];
+    check_var "seq1_path" "$seq1_path" "$HOME/in/seq1/A.txt"
+    check_var "seq2_path" "$seq2_path" "$HOME/in/seq2/A.txt"
+    check_array_var_defined "$genes_path" "( $HOME/in/genes/A.txt $HOME/in/genes/A.txt )"
+
+    # checking that the path variable really works
+    dx download "$seq1" -o seq1
+    DIFF=$(diff "$seq1_path" seq1)
+    if [ "$DIFF" != "" ]
     then
-        check_var "seq1_path" "$seq1_path" "$HOME/in/seq1/A.txt"
-        check_var "seq2_path" "$seq2_path" "$HOME/in/seq2/A.txt"
-        check_array_var_defined "$genes_path" "( $HOME/in/genes/A.txt $HOME/in/genes/A.txt )"
+        echo "Download sequential and parallel differ"
+        exit 1
     fi
 
     dx-upload-all-outputs
