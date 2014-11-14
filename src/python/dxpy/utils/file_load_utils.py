@@ -91,6 +91,15 @@ from dxpy.compat import environ
 from ..exceptions import DXError
 
 
+# Note: the DX_TEST_JOB_HOMEDIRS variable is set when we
+# are using run-app-locally. It might be that it is
+# preferable to report it instead.
+def get_home_dir(expand_home_var):
+    if expand_home_var:
+        return os.environ.get('HOME')
+    else:
+        return "$HOME"
+
 def get_input_dir(expand_home_var=True):
     '''
     :param expand_home_var: if true, expand the home directory to a full path
@@ -99,10 +108,7 @@ def get_input_dir(expand_home_var=True):
 
     Returns the input directory, where all inputs are downloaded
     '''
-    if expand_home_var:
-        home_dir = os.environ.get('HOME')
-    else:
-        home_dir = "$HOME"
+    home_dir = get_home_dir(expand_home_var)
     idir = os.path.join(home_dir, 'in')
     return idir
 
@@ -116,10 +122,7 @@ def get_output_dir(expand_home_var=True):
     Returns the output directory, where all outputs are created, and
     uploaded from
     '''
-    if expand_home_var:
-        home_dir = os.environ.get('HOME')
-    else:
-        home_dir = "$HOME"
+    home_dir = get_home_dir(expand_home_var)
     odir = os.path.join(home_dir, 'out')
     return odir
 
@@ -382,7 +385,7 @@ def analyze_bash_vars(job_input_file):
     def factory():
         return {'handler': [], 'basename': [],  'prefix': [], 'path': []}
     file_key_descs = collections.defaultdict(factory)
-    rel_home_dir = get_input_dir(expand_home_var=False)
+    rel_home_dir = get_input_dir(expand_home_var=True)
     for key, entries in file_entries.iteritems():
         for entry in entries:
             filename = entry['trg_fname']
