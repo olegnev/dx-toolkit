@@ -1016,14 +1016,20 @@ def mv(args):
 
 # ONLY for between DIFFERENT projects.  Will exit fatally otherwise.
 def cp(args):
+    import pprint
     dest_proj, dest_path, _none = try_call(resolve_path,
                                            args.destination, 'folder')
+    sys.stderr.write("dest_proj={}  dest_path={}\n".format(
+        pprint.pformat(dest_proj), pprint.pformat(dest_path)))
     try:
         if dest_path is None:
             raise ValueError()
         dx_dest = dxpy.get_handler(dest_proj)
+        sys.stderr.write("dest_path={} dx_dest={}\n".format(pprint.pformat(dest_path),
+                         pprint.pformat(dx_dest)))
         dx_dest.list_folder(folder=dest_path, only='folders')
     except:
+        sys.stderr.write("caught error\n");
         if dest_path is None:
             parser.exit(1, 'Cannot copy to a hash ID\n')
         # Destination folder path is new => renaming
@@ -1046,8 +1052,8 @@ def cp(args):
         except:
             err_exit()
 
-        # Clone and rename either the data object or the folder
-        # src_result is None if it could not be resolved to an object
+        # Clone and rename either the data object or the folder.
+        # src_result is None if it could not be resolved to an object.
         src_proj, src_path, src_results = try_call(resolve_existing_path,
                                                    args.sources[0],
                                                    allow_mult=True, all_mult=args.all)
