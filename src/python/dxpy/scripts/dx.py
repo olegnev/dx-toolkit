@@ -1016,20 +1016,10 @@ def mv(args):
 
 # ONLY for between DIFFERENT projects.  Will exit fatally otherwise.
 def cp(args):
-    import pprint
-    dest_proj, dest_path, _none = try_call(resolve_path,
-                                           args.destination, 'folder')
-    sys.stderr.write("dest_proj={}  dest_path={}\n".format(
-        pprint.pformat(dest_proj), pprint.pformat(dest_path)))
-    try:
-        if dest_path is None:
-            raise ValueError()
-        dx_dest = dxpy.get_handler(dest_proj)
-        sys.stderr.write("dest_path={} dx_dest={}\n".format(pprint.pformat(dest_path),
-                         pprint.pformat(dx_dest)))
-        dx_dest.list_folder(folder=dest_path, only='folders')
-    except:
-        sys.stderr.write("caught error\n");
+    def cp_noexistent_destination(dest_path):
+        ''' Copy the source to a destination that does not currently
+        exist. This invloves creating the target file/folder.
+        '''
         if dest_path is None:
             parser.exit(1, 'Cannot copy to a hash ID\n')
         # Destination folder path is new => renaming
@@ -1097,6 +1087,19 @@ def cp(args):
                 return
             except:
                 err_exit()
+        ##
+        ## This is the end of the handling of cp-like-rename
+
+    dest_proj, dest_path, _none = try_call(resolve_path,
+                                           args.destination, 'folder')
+    try:
+        if dest_path is None:
+            raise ValueError()
+        dx_dest = dxpy.get_handler(dest_proj)
+        dx_dest.list_folder(folder=dest_path, only='folders')
+    except:
+        cp_noexistent_destination(dest_path)
+        return
 
     if len(args.sources) == 0:
         parser.exit(1, 'No sources provided to copy to another project\n')
