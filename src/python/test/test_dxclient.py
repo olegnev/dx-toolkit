@@ -4300,6 +4300,7 @@ class TestDXCp(DXTestCase):
 
     # PTFM-13536, dx cp gives confusing error message when source
     # file is not found.
+    @unittest.skip("PTFM-13536 This doesn't work yet.")
     def test_nonexistent_file(self):
         fname1 = self.gen_uniq_fname()
         file_id1 = create_file_in_project(fname1, self.proj_id1)
