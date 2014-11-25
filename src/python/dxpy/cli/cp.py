@@ -102,7 +102,8 @@ def cp_noexistent_destination(args, dest_path, dx_dest, dest_proj):
                                              "project": dest_proj,
                                              "destination": dest_folder})['exists']
             if len(exists) > 0:
-                print(fill('The following objects already existed in the destination container and were not copied:') + '\n ' + '\n '.join(exists))
+                print(fill('The following objects already existed in the destination ' +
+                           'container and were not copied:') + '\n ' + '\n '.join(exists))
             for result in src_results:
                 if result['id'] not in exists:
                     dxpy.DXHTTPRequest('/' + result['id'] + '/rename',
