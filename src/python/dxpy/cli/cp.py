@@ -74,7 +74,10 @@ def cp_noexistent_destination(args, dest_path, dx_dest, dest_proj):
             # purely assumed, so give a better error message.
             parser.exit(1, fill('Error: You must specify a source project for ' + args.sources[0]) + '\n')
         else:
-            parser.exit(1, fill('A source path and the destination path resolved to the same project or container.  Please specify different source and destination containers, e.g.') + '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
+            parser.exit(1, fill('A source path and the destination path resolved to the ' +
+                                'same project or container.  Please specify different source ' +
+                                'and destination containers, e.g.') +
+                        '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
 
     if src_results is None:
         try:
@@ -87,7 +90,8 @@ def cp_noexistent_destination(args, dest_path, dx_dest, dest_proj):
                                              "project": dest_proj,
                                              "destination": dest_path})['exists']
             if len(exists) > 0:
-                print(fill('The following objects already existed in the destination container and were not copied:') + '\n ' + '\n '.join(exists))
+                print(fill('The following objects already existed in the destination ' +
+                           'container and were not copied:') + '\n ' + '\n '.join(exists))
                 return
         except:
             err_exit()
@@ -143,7 +147,8 @@ def cp(args):
                             '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
 
         if src_proj is None:
-            parser.exit(1, fill('Error: A source project must be specified or a current project set in order to clone objects between projects') + '\n')
+            parser.exit(1, fill('Error: A source project must be specified or a current ' +
+                                'project set in order to clone objects between projects') + '\n')
 
         if src_results is None:
             src_folders.append(src_folderpath)
