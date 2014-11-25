@@ -23,7 +23,8 @@ command-line client.
 
 from __future__ import (print_function, unicode_literals)
 
-import os, sys
+import os
+import sys
 
 import dxpy
 import dxpy.utils.printing as printing
@@ -136,7 +137,10 @@ def cp(args):
                 # purely assumed, so give a better error message.
                 parser.exit(1, fill('Error: You must specify a source project for ' + source) + '\n')
             else:
-                parser.exit(1, fill('Error: A source path and the destination path resolved to the same project or container.  Please specify different source and destination containers, e.g.') + '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
+                parser.exit(1, fill('Error: A source path and the destination path resolved ' +
+                                    'to the same project or container. Please specify ' +
+                                    'different source and destination containers, e.g.') +
+                            '\n  dx cp source-project:source-id-or-path dest-project:dest-path' + '\n')
 
         if src_proj is None:
             parser.exit(1, fill('Error: A source project must be specified or a current project set in order to clone objects between projects') + '\n')
@@ -152,6 +156,7 @@ def cp(args):
                                      "project": dest_proj,
                                      "destination": dest_path})['exists']
         if len(exists) > 0:
-            print(fill('The following objects already existed in the destination container and were left alone:') + '\n ' + '\n '.join(exists))
+            print(fill('The following objects already existed in the destination container ' +
+                       'and were left alone:') + '\n ' + '\n '.join(exists))
     except:
         err_exit()
