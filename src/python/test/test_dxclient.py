@@ -4311,7 +4311,7 @@ class TestDXCp(DXTestCase):
         output = ""
         expected_err_msg = "A folder to be cloned \(/{p1}/{f}\) does not exist in the source container {p2}".format(
             p1=self.proj_id1, f=fname1, p2=self.project)
-        with self.assertSubprocessFailure(stderr_regexp= expected_err_msg, exit_code=3):
+        with self.assertSubprocessFailure(stderr_regexp=expected_err_msg, exit_code=3):
             output = run("dx cp {p1}/{f} {p2}:/".format(p1=self.proj_id1, f=fname1,
                                                         p2=self.proj_id2))
         self.assertIn(fname1, output)
