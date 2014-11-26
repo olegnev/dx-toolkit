@@ -4308,13 +4308,10 @@ class TestDXCp(DXTestCase):
 
         # The file {p1}:/{f} exists, however, {p1}/{f} does not. We
         # want to see an error message that reflects this.
-        output = ""
         expected_err_msg = "A folder to be cloned \(/{p1}/{f}\) does not exist in the source container {p2}".format(
             p1=self.proj_id1, f=fname1, p2=self.project)
         with self.assertSubprocessFailure(stderr_regexp=expected_err_msg, exit_code=3):
-            output = run("dx cp {p1}/{f} {p2}:/".format(p1=self.proj_id1, f=fname1,
-                                                        p2=self.proj_id2))
-        self.assertIn(fname1, output)
+            run("dx cp {p1}/{f} {p2}:/".format(p1=self.proj_id1, f=fname1, p2=self.proj_id2))
 
     @unittest.skip("PTFM-11906 This doesn't work yet.")
     def test_file_in_other_project(self):
