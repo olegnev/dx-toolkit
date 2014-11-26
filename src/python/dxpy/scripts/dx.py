@@ -25,7 +25,7 @@ import traceback
 
 from ..cli import try_call, prompt_for_yn, INTERACTIVE_CLI
 from ..cli import workflow as workflow_cli
-from ..cli import cp as cp_cli
+from ..cli.cp import cp
 from ..exceptions import (err_exit, DXError, DXCLIError, DXAPIError, network_exceptions, default_expected_exceptions,
                           format_exception)
 from ..packages import requests
@@ -3548,8 +3548,7 @@ cp_sources_action = parser_cp.add_argument('sources', help='Objects and/or folde
                                            nargs='+')
 cp_sources_action.completer = DXPathCompleter()
 parser_cp.add_argument('destination', help=fill('Folder into which to copy the sources or new pathname (if only one source is provided).  Must be in a different project/container than all source paths.', width_adjustment=-15))
-parser_cp.set_defaults(func=cp_cli.cp)
-
+parser_cp.set_defaults(func=cp)
 register_subparser(parser_cp, categories='fs')
 
 parser_mv = subparsers.add_parser('mv', help='Move or rename objects and/or folders inside a project',

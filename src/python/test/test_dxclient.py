@@ -4298,20 +4298,23 @@ class TestDXCp(DXTestCase):
         self.assertIn("already existed", output)
         self.assertIn(file_id1, output)
 
-    # PTFM-13536, dx cp gives confusing error message when source
-    # file is not found.
-    @unittest.skip("PTFM-13536 This doesn't work yet.")
-    def test_nonexistent_file(self):
+    # 'dx cp' used to give a confusing error message when source file is not found.
+    # Check that this has been fixed
+    @unittest.skipUnless(os.environ.get("DX_RUN_NEXT_TESTS"),
+                         "Skipping a test that relies on unreleased features")
+    def test_error_msg_for_nonexistent_folder(self):
         fname1 = self.gen_uniq_fname()
         file_id1 = create_file_in_project(fname1, self.proj_id1)
 
         # The file {p1}:/{f} exists, however, {p1}/{f} does not. We
         # want to see an error message that reflects this.
-        with self.assertSubprocessFailure(stderr_regexp='A folder to be cloned does not exist *',
-                                          exit_code=3):
+        output = ""
+        expected_err_msg = "A folder to be cloned \(/{p1}/{f}\) does not exist in the source container {p2}".format(
+            p1=self.proj_id1, f=fname1, p2=self.project)
+        with self.assertSubprocessFailure(stderr_regexp= expected_err_msg, exit_code=3):
             output = run("dx cp {p1}/{f} {p2}:/".format(p1=self.proj_id1, f=fname1,
                                                         p2=self.proj_id2))
-            self.assertIn(fname1, output)
+        self.assertIn(fname1, output)
 
     @unittest.skip("PTFM-11906 This doesn't work yet.")
     def test_file_in_other_project(self):

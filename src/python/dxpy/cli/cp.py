@@ -18,19 +18,15 @@
 This submodule handles copy commands for the dx
 command-line client.
 
-'dx cp' work only between DIFFERENT projects. It will exit fatally otherwise.
+'dx cp' works only between DIFFERENT projects. It will exit fatally otherwise.
 '''
 
 from __future__ import (print_function, unicode_literals)
-
-import os
-import sys
 
 import dxpy
 import dxpy.utils.printing as printing
 from .parsers import (process_dataobject_args, process_single_dataobject_output_args,
                       process_instance_type_arg)
-from ..utils.env import get_env_var
 from ..utils.resolver import (resolve_existing_path, resolve_path, is_analysis_id, is_hashid,
                               get_last_pos_of_char, get_first_pos_of_char)
 from ..exceptions import (err_exit, DXCLIError, InvalidState)
@@ -38,9 +34,9 @@ from . import (try_call, try_call_err_exit)
 from dxpy.utils.printing import (fill)
 
 
-def cp_noexistent_destination(args, dest_path, dx_dest, dest_proj):
+def cp_to_noexistent_destination(args, dest_path, dx_dest, dest_proj):
     ''' Copy the source to a destination that does not currently
-    exist. This invloves creating the target file/folder.
+    exist. This involves creating the target file/folder.
     '''
     # Destination folder path is new => renaming
     if len(args.sources) != 1:
@@ -124,7 +120,7 @@ def cp(args):
         # check if the destination exists
         dx_dest.list_folder(folder=dest_path, only='folders')
     except:
-        cp_noexistent_destination(args, dest_path, dx_dest, dest_proj)
+        cp_to_noexistent_destination(args, dest_path, dx_dest, dest_proj)
         return
 
     # The destination exists, we need to copy all of the sources to it.
