@@ -84,7 +84,6 @@ import json
 import pipes
 import os
 import fnmatch
-import math
 import sys
 import collections
 import dxpy
@@ -92,35 +91,35 @@ from dxpy.compat import environ
 from ..exceptions import DXError
 
 
-def get_input_dir(expand_home_var=True):
+def get_input_dir(job_homedir=None):
     '''
-    :param expand_home_var: if true, expand the home directory to a full path
+    :param job_homedir: explicit value for home directory, used for testing purposes
     :rtype: string
     :returns: path to input directory
 
     Returns the input directory, where all inputs are downloaded
     '''
-    if expand_home_var:
-        home_dir = os.environ.get('HOME')
+    if job_homedir is not None:
+        home_dir = job_homedir
     else:
-        home_dir = "$HOME"
+        home_dir = os.environ.get('HOME')
     idir = os.path.join(home_dir, 'in')
     return idir
 
 
-def get_output_dir(expand_home_var=True):
+def get_output_dir(job_homedir=None):
     '''
-    :param expand_home_var: if true, expand the home directory to a full path
+    :param job_homedir: explicit value for home directory, used for testing purposes
     :rtype: string
     :returns: path to output directory
 
     Returns the output directory, where all outputs are created, and
     uploaded from
     '''
-    if expand_home_var:
-        home_dir = os.environ.get('HOME')
+    if job_homedir is not None:
+        home_dir = job_homedir
     else:
-        home_dir = "$HOME"
+        home_dir = os.environ.get('HOME')
     odir = os.path.join(home_dir, 'out')
     return odir
 
@@ -270,6 +269,9 @@ def get_job_input_filenames(job_input_file):
 
 def get_input_spec_patterns():
     ''' Extract the inputSpec patterns, if they exist -- modifed from dx-upload-all-outputs
+
+    Returns a dict of all patterns, with keys equal to the respective
+    input parameter names.
     '''
     input_spec = None
     if 'DX_JOB_ID' in os.environ:
@@ -290,7 +292,7 @@ def get_input_spec_patterns():
     # convert to a dictionary. Each entry in the input spec
     # has {name, class} attributes.
     if input_spec is None:
-        return None
+        return {}
 
     # For each field name, return its patterns.
     # Make sure a pattern is legal, ignore illegal patterns.
@@ -317,7 +319,8 @@ def choose_shorter_string(p, q):
         return q
     return p
 
-def analyze_bash_vars(job_input_file):
+
+def analyze_bash_vars(job_input_file, job_homedir):
     '''
     This function examines the input file, and calculates variables to
     instantiate in the shell environment. It is called right before starting the
@@ -366,7 +369,7 @@ def analyze_bash_vars(job_input_file):
         if patterns is not None:
             for pattern in patterns:
                 if fnmatch.fnmatch(basename, pattern):
-                    left_piece, separator, right_piece = pattern.rpartition("*")
+                    _, _, right_piece = pattern.rpartition("*")
                     best_prefix = choose_shorter_string(best_prefix, basename[:-len(right_piece)])
         if best_prefix is not None:
             return best_prefix
@@ -380,7 +383,7 @@ def analyze_bash_vars(job_input_file):
     def factory():
         return {'handler': [], 'basename': [],  'prefix': [], 'path': []}
     file_key_descs = collections.defaultdict(factory)
-    rel_home_dir = get_input_dir(expand_home_var=False)
+    rel_home_dir = get_input_dir(job_homedir)
     for key, entries in file_entries.iteritems():
         for entry in entries:
             filename = entry['trg_fname']
@@ -398,9 +401,10 @@ def analyze_bash_vars(job_input_file):
 # Note: pipes.quote() to be replaced with shlex.quote() in Python 3
 # (see http://docs.python.org/2/library/pipes.html#pipes.quote)
 #
-def gen_bash_vars(job_input_file, check_name_collision=True):
+def gen_bash_vars(job_input_file, job_homedir=None, check_name_collision=True):
     """
     :param job_input_file: path to a JSON file describing the job inputs
+    :param job_homedir: path to home directory, used for testing purposes
     :param check_name_collision: should we check for name collisions?
     :return: list of lines
     :rtype: list of strings
@@ -409,7 +413,7 @@ def gen_bash_vars(job_input_file, check_name_collision=True):
     If *check_name_collision* is true, then detect and warn about
     collisions with essential environment variables.
     """
-    file_key_descs, rest_hash = analyze_bash_vars(job_input_file)
+    file_key_descs, rest_hash = analyze_bash_vars(job_input_file, job_homedir)
 
     def string_of_elem(elem):
         result = None
@@ -423,8 +427,8 @@ def gen_bash_vars(job_input_file, check_name_collision=True):
 
     def string_of_value(val):
         if isinstance(val, list):
-            str = " ".join([string_of_elem(vitem) for vitem in val])
-            return "( {} )".format(str)
+            string = " ".join([string_of_elem(vitem) for vitem in val])
+            return "( {} )".format(string)
         else:
             return string_of_elem(val)
 
@@ -461,9 +465,9 @@ def _gen_bash_vars_old(job_input_file):
     Old code for generating bash variables from the input file. Previously used inside a script.
     We use it to verify the new version of the code.
     """
-    def old_string_of_elem(elem):
+    def old_string_of_elem(v):
         """
-        :param elem: a value read from a JSON file
+        :param v: a value read from a JSON file
         :returns: string to be instantiated as a bash variable
         :rtype: string
         """
