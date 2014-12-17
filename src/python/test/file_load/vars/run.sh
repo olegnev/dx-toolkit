@@ -77,7 +77,6 @@ check_string_array() {
         exit 1
     fi
 
-    #echo "num args=$#"
     declare -a a=("${!2}")
     declare -a b=("${!3}")
 
@@ -90,16 +89,14 @@ check_string_array() {
     then
         echo "Error: length mismatch, var=$1  $a_str != $b_str"
         dx-jobutil-report-error "length mismatch, var=$1  $a_str != $b_str"
-        exit 1
     fi
 
     for (( i=0; i<${len_a}; i++ ));
     do
-        if [ ${a[$i]} != ${b[$i]} ];
+        if [ "${a[$i]}" != "${b[$i]}" ];
         then
             echo "Error: mismatch in values for var=$1  $a_str != $b_str"
             dx-jobutil-report-error "Error: mismatch in values for var=$1  $a_str != $b_str"
-            exit 1
         fi
     done
 }
