@@ -19,9 +19,8 @@
 
 from __future__ import print_function, unicode_literals
 
-import os, sys, datetime, getpass, collections, re, json, argparse, copy, hashlib, errno, io, time, subprocess, glob
+import os, sys, datetime, getpass, collections, re, json, argparse, copy, hashlib, io, time, subprocess, glob, logging
 import shlex # respects quoted substrings when splitting
-import traceback
 
 from ..cli import try_call, prompt_for_yn, INTERACTIVE_CLI
 from ..cli import workflow as workflow_cli
@@ -36,6 +35,8 @@ from ..utils.env import sys_encoding, set_env_var, get_env_var, get_user_conf_di
 
 wrap_stdio_in_codecs()
 decode_command_line_args()
+
+logging.basicConfig(level=logging.INFO)
 
 try:
     import colorama
@@ -1400,7 +1401,7 @@ def set_details(args):
         try:
             dxpy.DXHTTPRequest('/' + result['id'] + '/setDetails', details)
         except (dxpy.DXAPIError,) + network_exceptions as exc_details:
-            print(format_exceptions(exc_details), file=sys.stderr)
+            print(format_exception(exc_details), file=sys.stderr)
             had_error = True
 
     if had_error:
@@ -4400,12 +4401,8 @@ def main():
             args.func(args)
             # Flush buffered data in stdout before interpreter shutdown to ignore broken pipes
             sys.stdout.flush()
-        except IOError as e:
-            if e.errno == errno.EPIPE:
-                if dxpy._DEBUG > 0:
-                    print("Broken pipe", file=sys.stderr)
-            else:
-                raise
+        except:
+            err_exit()
     else:
         parser.print_help()
         sys.exit(1)
