@@ -4319,8 +4319,9 @@ class TestDXCp(DXTestCase):
                                           exit_code=3):
             run("dx cp {p1}:/{f} {p2}:/xxx/yyy/z.txt".format(p1=self.proj_id1, f=fname1, p2=self.proj_id2))
 
-        with self.assertSubprocessFailure(stderr_regexp="source path and the destination path resolved to the same project",
-                                          exit_code=3):
+        with self.assertSubprocessFailure(
+                stderr_regexp="source path and the destination path resolved to the same project",
+                exit_code=3):
             run("dx cp {p1}:/{f} {p1}:/".format(p1=self.proj_id1, f=fname1))
 
     @unittest.skip("PTFM-11906 This doesn't work yet.")

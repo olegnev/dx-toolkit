@@ -140,7 +140,7 @@ def cp(args):
                 raise DXCLIError(fill('Error: A source path and the destination path resolved ' +
                                     'to the same project or container. Please specify ' +
                                     'different source and destination containers, e.g.') +
-                            '\n  dx cp source-project:source-id-or-path dest-project:dest-path')
+                                 '\n  dx cp source-project:source-id-or-path dest-project:dest-path')
 
         if src_proj is None:
             raise DXCLIError(fill('Error: A source project must be specified or a current ' +
