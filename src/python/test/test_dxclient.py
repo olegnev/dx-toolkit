@@ -1093,9 +1093,8 @@ dxpy.run()
     # Make sure that files/subdirs are not downloaded twice. This checks that we fixed
     # PTFM-14106.
     def test_dx_download_recursive(self):
-        import pprint
-
         data = "ABCD"
+
         def gen_file(fname, proj_id):
             dxfile = dxpy.upload_string(data, name=fname, project=proj_id, wait_on_close=True)
             return dxfile
