@@ -1092,7 +1092,7 @@ dxpy.run()
     #      B/
     # Make sure that files/subdirs are not downloaded twice. This checks that we fixed
     # PTFM-14106.
-    def test_dx_download_recursive(self):
+    def test_dx_download_root_recursive(self):
         data = "ABCD"
 
         def gen_file(fname, proj_id):
@@ -1107,7 +1107,6 @@ dxpy.run()
             dxpy.api.project_new_folder(proj_id, {"folder": "/A"})
             dxpy.api.project_new_folder(proj_id, {"folder": "/B"})
             with chdir(testdir):
-                print("moving to directory {}\n".format(testdir))
                 run("dx download -r {}:/*".format(proj_id))
                 shutil.rmtree(testdir)
 
