@@ -1099,16 +1099,32 @@ dxpy.run()
             dxfile = dxpy.upload_string(data, name=fname, project=proj_id, wait_on_close=True)
             return dxfile
 
-        testdir = tempfile.mkdtemp()
-
         with temporary_project('test_proj', select=True) as temp_project:
             proj_id = temp_project.get_id()
             gen_file("X.txt", proj_id)
             dxpy.api.project_new_folder(proj_id, {"folder": "/A"})
             dxpy.api.project_new_folder(proj_id, {"folder": "/B"})
+
+            testdir = tempfile.mkdtemp()
+            with chdir(testdir):
+                run("dx download -r {}:/".format(proj_id))
+                shutil.rmtree(testdir)
+
+            testdir = tempfile.mkdtemp()
+            with chdir(testdir):
+                run("dx download -r /")
+                shutil.rmtree(testdir)
+
+            testdir = tempfile.mkdtemp()
             with chdir(testdir):
                 run("dx download -r {}:/*".format(proj_id))
                 shutil.rmtree(testdir)
+
+            testdir = tempfile.mkdtemp()
+            with chdir(testdir):
+                run("dx download -r *")
+                shutil.rmtree(testdir)
+
 
 class TestDXClientDescribe(DXTestCase):
     def test_projects(self):
