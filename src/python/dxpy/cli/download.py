@@ -68,7 +68,9 @@ def ensure_local_dir(d):
 
 def list_subfolders(project, path, args, recurse=True):
     if project not in args.cached_folder_lists:
-        args.cached_folder_lists[project] = dxpy.get_handler(project).describe(input_params={'folders': True})['folders']
+        args.cached_folder_lists[project] = dxpy.get_handler(project).describe(
+            input_params={'folders': True}
+        )['folders']
     # TODO: support shell-style path globbing (i.e. /a*/c matches /ab/c but not /a/b/c)
     # return pathmatch.filter(args.cached_folder_lists[project], os.path.join(path, '*'))
     if recurse:
@@ -115,6 +117,7 @@ def download_files(files, destdir, args, dest_filename=None):
             dest = dest_filename or os.path.join(destdir, file_desc['name'].replace('/', '%2F'))
             download_one_file(project, file_desc, dest, args)
 
+
 def download_folders(folders, destdir, args):
     for project in folders:
         for folder, strip_prefix in folders[project]:
@@ -151,9 +154,7 @@ def download(args):
             if colon_pos >= 0:
                 path = path[colon_pos + 1:]
             abs_path, strip_prefix = rel2abs(path, project)
-
             parent_folder = os.path.dirname(abs_path)
-            #folder_listing = dxpy.get_handler(project).list_folder(folder=parent_folder, only='folders')['folders'] # includeHidden=
             folder_listing = list_subfolders(project, parent_folder, args, recurse=False)
             matching_folders = pathmatch.filter(folder_listing, abs_path)
             if '/' in matching_folders and len(matching_folders) > 1:
@@ -173,7 +174,8 @@ def download(args):
     if len(filenames) > 0 and len(foldernames) > 0:
         name_conflicts = set(filenames) & set(foldernames)
         if len(name_conflicts) > 0:
-            msg = "Error: The following paths are both file and folder names, and cannot be downloaded to the same destination: "
+            msg = "Error: The following paths are both file and folder names, and " \
+                  "cannot be downloaded to the same destination: "
             msg += ", ".join(sorted(name_conflicts))
             err_exit(fill(msg))
 
