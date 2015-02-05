@@ -1694,6 +1694,7 @@ def cat(args):
         except:
             err_exit()
 
+
 def download_wrapper(args):
     if args.output == '-':
         cat(parser.parse_args(['cat'] + args.paths))
