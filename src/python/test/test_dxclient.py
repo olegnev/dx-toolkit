@@ -1099,31 +1099,37 @@ dxpy.run()
             dxfile = dxpy.upload_string(data, name=fname, project=proj_id, wait_on_close=True)
             return dxfile
 
+        # Download the project recursively, with command [cmd_string].
+        # Compare the downloaded directory against the first download
+        # structure.
+        def test_download_cmd(org_dir, cmd_string):
+            testdir = tempfile.mkdtemp()
+            with chdir(testdir):
+                run(cmd_string)
+                run("diff -Naur {} {}".format(org_dir, testdir))
+                shutil.rmtree(testdir)
+
         with temporary_project('test_proj', select=True) as temp_project:
             proj_id = temp_project.get_id()
             gen_file("X.txt", proj_id)
             dxpy.api.project_new_folder(proj_id, {"folder": "/A"})
             dxpy.api.project_new_folder(proj_id, {"folder": "/B"})
 
-            testdir = tempfile.mkdtemp()
-            with chdir(testdir):
+            # Test download to stdout
+            buf = run("dx download -o - X.txt")
+            assert(buf == data)
+
+            # Create an entire copy of the project directory structure,
+            # which will be compared to all other downloads.
+            org_dir = tempfile.mkdtemp()
+            with chdir(org_dir):
                 run("dx download -r {}:/".format(proj_id))
-                shutil.rmtree(testdir)
 
-            testdir = tempfile.mkdtemp()
-            with chdir(testdir):
-                run("dx download -r /")
-                shutil.rmtree(testdir)
+            test_download_cmd(org_dir, "dx download -r /")
+            test_download_cmd(org_dir, "dx download -r {}:/*".format(proj_id))
+            test_download_cmd(org_dir, "dx download -r *")
 
-            testdir = tempfile.mkdtemp()
-            with chdir(testdir):
-                run("dx download -r {}:/*".format(proj_id))
-                shutil.rmtree(testdir)
-
-            testdir = tempfile.mkdtemp()
-            with chdir(testdir):
-                run("dx download -r *")
-                shutil.rmtree(testdir)
+            shutil.rmtree(org_dir)
 
 
 class TestDXClientDescribe(DXTestCase):

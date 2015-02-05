@@ -1694,6 +1694,13 @@ def cat(args):
         except:
             err_exit()
 
+def download_wrapper(args):
+    if args.output == '-':
+        cat(parser.parse_args(['cat'] + args.paths))
+        return
+    download(args)
+
+
 def head(args):
     # Attempt to resolve name
     project, _folderpath, entity_result = try_call(resolve_existing_path,
@@ -3493,7 +3500,7 @@ parser_download.add_argument('-a', '--all', help='If multiple objects match the 
                              action='store_true')
 parser_download.add_argument('--no-progress', help='Do not show a progress bar', dest='show_progress',
                              action='store_false', default=sys.stderr.isatty())
-parser_download.set_defaults(func=download)
+parser_download.set_defaults(func=download_wrapper)
 register_subparser(parser_download, categories='data')
 
 parser_make_download_url = subparsers.add_parser('make_download_url', help='Create a file download link for sharing',

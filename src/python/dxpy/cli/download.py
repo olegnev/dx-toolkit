@@ -1,4 +1,4 @@
-# Copyright (C) 2014 DNAnexus, Inc.
+# Copyright (C) 2014-2015 DNAnexus, Inc.
 #
 # This file is part of dx-toolkit (DNAnexus platform client libraries).
 #
@@ -15,7 +15,7 @@
 #   under the License.
 
 '''
-This submodule handles download commands for the dx
+This module handles download commands for the dx
 command-line client.
 '''
 from __future__ import (print_function, unicode_literals)
@@ -59,33 +59,33 @@ def download_one_file(project, file_desc, dest_filename, args):
         err_exit()
 
 
-def ensure_local_dir(d):
+def _ensure_local_dir(d):
     if not os.path.isdir(d):
         if os.path.exists(d):
             err_exit(fill('Error: path "' + d + '" already exists and is not a directory'))
         os.makedirs(d)
 
 
-def list_subfolders(project, path, args, recurse=True):
-    if project not in args.cached_folder_lists:
-        args.cached_folder_lists[project] = dxpy.get_handler(project).describe(
+def list_subfolders(project, path, cached_folder_lists, recurse=True):
+    if project not in cached_folder_lists:
+        cached_folder_lists[project] = dxpy.get_handler(project).describe(
             input_params={'folders': True}
         )['folders']
     # TODO: support shell-style path globbing (i.e. /a*/c matches /ab/c but not /a/b/c)
-    # return pathmatch.filter(args.cached_folder_lists[project], os.path.join(path, '*'))
+    # return pathmatch.filter(cached_folder_lists[project], os.path.join(path, '*'))
     if recurse:
-        return [f for f in args.cached_folder_lists[project] if f.startswith(path)]
+        return (f for f in cached_folder_lists[project] if f.startswith(path))
     else:
-        return [f for f in args.cached_folder_lists[project] if f.startswith(path) and '/' not in f[len(path)+1:]]
+        return (f for f in cached_folder_lists[project] if f.startswith(path) and '/' not in f[len(path)+1:])
 
 
-def download_one_folder(project, folder, strip_prefix, destdir, args):
+def download_one_folder(project, folder, strip_prefix, destdir, cached_folder_lists, args):
     assert(folder.startswith(strip_prefix))
     if not args.recursive:
         err_exit('Error: "' + folder + '" is a folder but the -r/--recursive option was not given')
 
-    for subfolder in list_subfolders(project, folder, args, recurse=True):
-        ensure_local_dir(os.path.join(destdir, subfolder[len(strip_prefix):].lstrip('/')))
+    for subfolder in list_subfolders(project, folder, cached_folder_lists, recurse=True):
+        _ensure_local_dir(os.path.join(destdir, subfolder[len(strip_prefix):].lstrip('/')))
 
     # TODO: control visibility=hidden
     for f in dxpy.search.find_data_objects(classname='file', state='closed', project=project, folder=folder,
@@ -118,20 +118,16 @@ def download_files(files, destdir, args, dest_filename=None):
             download_one_file(project, file_desc, dest, args)
 
 
-def download_folders(folders, destdir, args):
+def download_folders(folders, destdir, cached_folder_lists, args):
     for project in folders:
         for folder, strip_prefix in folders[project]:
-            download_one_folder(project, folder, strip_prefix, destdir, args)
+            download_one_folder(project, folder, strip_prefix, destdir, cached_folder_lists, args)
 
 
 # Main entry point.
 def download(args):
     # Get space for caching subfolders
-    args.cached_folder_lists = {}
-
-    if args.output == '-':
-        cat(parser.parse_args(['cat'] + args.paths))
-        return
+    cached_folder_lists = {}
 
     folders_to_get, files_to_get, count = collections.defaultdict(list), collections.defaultdict(list), 0
     foldernames, filenames = [], []
@@ -155,7 +151,7 @@ def download(args):
                 path = path[colon_pos + 1:]
             abs_path, strip_prefix = rel2abs(path, project)
             parent_folder = os.path.dirname(abs_path)
-            folder_listing = list_subfolders(project, parent_folder, args, recurse=False)
+            folder_listing = list_subfolders(project, parent_folder, cached_folder_lists, recurse=False)
             matching_folders = pathmatch.filter(folder_listing, abs_path)
             if '/' in matching_folders and len(matching_folders) > 1:
                 # The list of subfolders is {'/', '/A', '/B'}.
@@ -192,5 +188,5 @@ def download(args):
     else:
         destdir, dest_filename = os.getcwd(), args.output
 
-    download_folders(folders_to_get, destdir, args)
+    download_folders(folders_to_get, destdir, cached_folder_lists, args)
     download_files(files_to_get, destdir, args, dest_filename=dest_filename)
