@@ -1115,21 +1115,31 @@ dxpy.run()
             dxpy.api.project_new_folder(proj_id, {"folder": "/A"})
             dxpy.api.project_new_folder(proj_id, {"folder": "/B"})
 
-            # Test download to stdout
-            buf = run("dx download -o - X.txt")
-            assert(buf == data)
-
             # Create an entire copy of the project directory structure,
             # which will be compared to all other downloads.
-            org_dir = tempfile.mkdtemp()
-            with chdir(org_dir):
+            orig_dir = tempfile.mkdtemp()
+            with chdir(orig_dir):
                 run("dx download -r {}:/".format(proj_id))
 
-            test_download_cmd(org_dir, "dx download -r /")
-            test_download_cmd(org_dir, "dx download -r {}:/*".format(proj_id))
-            test_download_cmd(org_dir, "dx download -r *")
+            test_download_cmd(orig_dir, "dx download -r /")
+            test_download_cmd(orig_dir, "dx download -r {}:/*".format(proj_id))
+            test_download_cmd(orig_dir, "dx download -r *")
 
-            shutil.rmtree(org_dir)
+            shutil.rmtree(orig_dir)
+
+    # Test download to stdout
+    def test_download_to_stdout(self):
+        data = "ABCD"
+
+        def gen_file(fname, proj_id):
+            dxfile = dxpy.upload_string(data, name=fname, project=proj_id, wait_on_close=True)
+            return dxfile
+
+        with temporary_project('test_proj', select=True) as temp_project:
+            proj_id = temp_project.get_id()
+            gen_file("X.txt", proj_id)
+            buf = run("dx download -o - X.txt")
+            self.assertEqual(buf, data)
 
 
 class TestDXClientDescribe(DXTestCase):

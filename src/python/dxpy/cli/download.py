@@ -15,8 +15,7 @@
 #   under the License.
 
 '''
-This module handles download commands for the dx
-command-line client.
+This module handles download commands for the dx command-line client.
 '''
 from __future__ import (print_function, unicode_literals)
 import pprint
@@ -66,7 +65,7 @@ def _ensure_local_dir(d):
         os.makedirs(d)
 
 
-def list_subfolders(project, path, cached_folder_lists, recurse=True):
+def _list_subfolders(project, path, cached_folder_lists, recurse=True):
     if project not in cached_folder_lists:
         cached_folder_lists[project] = dxpy.get_handler(project).describe(
             input_params={'folders': True}
@@ -84,7 +83,7 @@ def download_one_folder(project, folder, strip_prefix, destdir, cached_folder_li
     if not args.recursive:
         err_exit('Error: "' + folder + '" is a folder but the -r/--recursive option was not given')
 
-    for subfolder in list_subfolders(project, folder, cached_folder_lists, recurse=True):
+    for subfolder in _list_subfolders(project, folder, cached_folder_lists, recurse=True):
         _ensure_local_dir(os.path.join(destdir, subfolder[len(strip_prefix):].lstrip('/')))
 
     # TODO: control visibility=hidden
@@ -95,11 +94,11 @@ def download_one_folder(project, folder, strip_prefix, destdir, cached_folder_li
         download_one_file(project, file_desc, dest_filename, args)
 
 
-def is_glob(path):
+def _is_glob(path):
     return get_first_pos_of_char('*', path) > -1 or get_first_pos_of_char('?', path) > -1
 
 
-def rel2abs(path, project):
+def _rel2abs(path, project):
     if path.startswith('/') or dxpy.WORKSPACE_ID != project:
         abs_path, strip_prefix = path, os.path.dirname(path.rstrip('/'))
     else:
@@ -110,7 +109,7 @@ def rel2abs(path, project):
     return abs_path, strip_prefix
 
 
-def download_files(files, destdir, args, dest_filename=None):
+def _download_files(files, destdir, args, dest_filename=None):
     for project in files:
         for f in files[project]:
             file_desc = f['describe']
@@ -118,7 +117,7 @@ def download_files(files, destdir, args, dest_filename=None):
             download_one_file(project, file_desc, dest, args)
 
 
-def download_folders(folders, destdir, cached_folder_lists, args):
+def _download_folders(folders, destdir, cached_folder_lists, args):
     for project in folders:
         for folder, strip_prefix in folders[project]:
             download_one_folder(project, folder, strip_prefix, destdir, cached_folder_lists, args)
@@ -135,7 +134,7 @@ def download(args):
         # Attempt to resolve name. If --all is given or the path looks like a glob, download all matches.
         # Otherwise, the resolver will display a picker (or error out if there is no tty to display to).
         resolver_kwargs = {'allow_empty_string': False}
-        if args.all or is_glob(path):
+        if args.all or _is_glob(path):
             resolver_kwargs.update({'allow_mult': True, 'all_mult': True})
         project, folderpath, matching_files = try_call(resolve_existing_path, path, **resolver_kwargs)
         if matching_files is None:
@@ -149,9 +148,9 @@ def download(args):
             colon_pos = get_first_pos_of_char(":", path)
             if colon_pos >= 0:
                 path = path[colon_pos + 1:]
-            abs_path, strip_prefix = rel2abs(path, project)
+            abs_path, strip_prefix = _rel2abs(path, project)
             parent_folder = os.path.dirname(abs_path)
-            folder_listing = list_subfolders(project, parent_folder, cached_folder_lists, recurse=False)
+            folder_listing = _list_subfolders(project, parent_folder, cached_folder_lists, recurse=False)
             matching_folders = pathmatch.filter(folder_listing, abs_path)
             if '/' in matching_folders and len(matching_folders) > 1:
                 # The list of subfolders is {'/', '/A', '/B'}.
@@ -188,5 +187,5 @@ def download(args):
     else:
         destdir, dest_filename = os.getcwd(), args.output
 
-    download_folders(folders_to_get, destdir, cached_folder_lists, args)
-    download_files(files_to_get, destdir, args, dest_filename=dest_filename)
+    _download_folders(folders_to_get, destdir, cached_folder_lists, args)
+    _download_files(files_to_get, destdir, args, dest_filename=dest_filename)

@@ -1695,7 +1695,7 @@ def cat(args):
             err_exit()
 
 
-def download_wrapper(args):
+def download_or_cat(args):
     if args.output == '-':
         cat(parser.parse_args(['cat'] + args.paths))
         return
@@ -3501,7 +3501,7 @@ parser_download.add_argument('-a', '--all', help='If multiple objects match the 
                              action='store_true')
 parser_download.add_argument('--no-progress', help='Do not show a progress bar', dest='show_progress',
                              action='store_false', default=sys.stderr.isatty())
-parser_download.set_defaults(func=download_wrapper)
+parser_download.set_defaults(func=download_or_cat)
 register_subparser(parser_download, categories='data')
 
 parser_make_download_url = subparsers.add_parser('make_download_url', help='Create a file download link for sharing',
