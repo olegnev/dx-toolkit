@@ -78,7 +78,7 @@ def _list_subfolders(project, path, cached_folder_lists, recurse=True):
         return (f for f in cached_folder_lists[project] if f.startswith(path) and '/' not in f[len(path)+1:])
 
 
-def download_one_folder(project, folder, strip_prefix, destdir, cached_folder_lists, args):
+def _download_one_folder(project, folder, strip_prefix, destdir, cached_folder_lists, args):
     assert(folder.startswith(strip_prefix))
     if not args.recursive:
         err_exit('Error: "' + folder + '" is a folder but the -r/--recursive option was not given')
@@ -120,7 +120,7 @@ def _download_files(files, destdir, args, dest_filename=None):
 def _download_folders(folders, destdir, cached_folder_lists, args):
     for project in folders:
         for folder, strip_prefix in folders[project]:
-            download_one_folder(project, folder, strip_prefix, destdir, cached_folder_lists, args)
+            _download_one_folder(project, folder, strip_prefix, destdir, cached_folder_lists, args)
 
 
 # Main entry point.
