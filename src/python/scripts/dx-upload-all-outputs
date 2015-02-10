@@ -87,7 +87,7 @@ parser.add_argument("--sequential", help="Upload the files sequentially", action
                     dest="parallel")
 parser.add_argument('--clearJSON',
                     help='Clears the output JSON file prior to starting upload.')
-parser.add_argument("--wait_on_close", help="Wait for files to close, default is not to wait",
+parser.add_argument("--wait-on-close", help="Wait for files to close, default is not to wait",
                     action="store_true",
                     default=False,
                     dest="wait_on_close")
