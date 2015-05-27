@@ -252,31 +252,32 @@ def compare_to_output_spec_and_annotate(subdir_recs, output_spec):
         if class_ == 'file':
             if num_files > 1:
                 report_error_and_exit(
-                    "OutputError",
-                    "key {} is of class {} but there are {} files".format(key, class_, num_files))
+                    "AppInternalError",
+                    "Expected to find 1 file for key {} of class file, but there are {} files".format(key, num_files))
+            if num_files == 0 and not is_optional:
+                # This is an error that the jobmanager will deal with.
+                pass
         else:
-            # array of files, there could be any number of files in the subdirectory (including zero)
+            # array of files, there could be any number of files in the
+            # subdirectory (including zero)
             pass
 
     for key in output_spec:
         '''Check that all the relevant output fields have been generated'''
         class_ = output_spec[key]['class']
-        if class_ != 'file' and class_ != 'array:file':
+        if class_ == 'file' or class_ == 'array:file':
+            is_optional = output_spec[key]['optional']
+            if key in subdir_recs:
+                sanity_check_field(key, is_optional)
+            # Note: the jobmanager will throw an error for missing outputs
+        else:
             # detects when a subdirectory appears for an output that
             # is not "file" nor "array:file".
             if key in subdir_recs:
                 report_error_and_exit(
-                    "OutputError",
+                    "AppInternalError",
                     "key {} is of class {} but it appears in the output directory".
                     format(key, class_))
-                return
-        is_optional = output_spec[key]['optional']
-        if (not is_optional and key
-            not in subdir_recs):
-            report_error_and_exit("OutputError",
-                                  "output key {} not generated".format(key))
-        sanity_check_field(key, is_optional)
-
 
 # Create an entry encapsulating the context required to upload a file.
 # The idea is to avoid sharing data between parallel threads of execution.

@@ -454,5 +454,8 @@ class TestDXBashHelpers(DXTestCase):
         dxpy.upload_string("1234", wait_on_close=True, name="A.txt")
         self.run_test_app_locally('file_optional', [])
 
+        #with self.assertRaises(testutil.DXCalledProcessError):
+        #    self.run_test_app_locally('file_optional', ['-iseq1=A.txt', '-iseq2=B.txt'])
+
 if __name__ == '__main__':
     unittest.main()
