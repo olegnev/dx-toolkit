@@ -246,6 +246,27 @@ class TestDXBashHelpers(DXTestCase):
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
 
+    def test_file_optional(self):
+        ''' Tests that file optional input arguments are handled correctly '''
+        with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
+            env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
+
+            # Upload some files for use by the applet
+            #dxpy.upload_string("1234\n", project=dxproj.get_id(), name="A.txt")
+
+            # Build the applet, patching in the bash helpers from the
+            # local checkout
+            applet_id = build_app_with_bash_helpers(
+                os.path.join(TEST_APPS, 'file_optional'),
+                dxproj.get_id())
+
+            # Run the applet
+            #applet_args = ["-iseq1=A.txt"]
+            applet_args = []
+            cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
+            cmd_args.extend(applet_args)
+            run(cmd_args, env=env)
+
     def test_prefix_patterns(self):
         """ Tests that the bash prefix variable works correctly, and
         respects patterns.
