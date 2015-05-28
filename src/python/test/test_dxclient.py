@@ -1193,6 +1193,7 @@ dxpy.run()
 
 class TestDXClientDescribe(DXTestCase):
     def test_projects(self):
+        print("running this other test case")
         run("dx describe :")
         run("dx describe " + self.project)
         run("dx describe " + self.project + ":")
@@ -1271,6 +1272,47 @@ class TestDXClientRun(DXTestCase):
     def tearDown(self):
         dxpy.api.project_destroy(self.other_proj_id, {'terminateJobs': True})
         super(TestDXClientRun, self).tearDown()
+
+    @unittest.skipUnless(testutil.TEST_ENV, "IDK for now")
+    def test_dx_run_depends_on(self):
+        print("Running Test")
+        applet_id = dxpy.api.applet_new({"project": self.project,
+                                         "dxapi": "1.0.0",
+                                         "runSpec": {"interpreter": "bash",
+                                                     "code": "echo 'hello'"}
+                                         })['id']
+        sub_applet0_id = dxpy.api.applet_new({"project": self.project,
+                                         "dxapi": "1.0.0",
+                                         "runSpec": {"interpreter": "bash",
+                                                     "code": "echo 'hello'"}
+                                         })['id']
+        sub_applet1_id = dxpy.api.applet_new({"project": self.project,
+                                         "dxapi": "1.0.0",
+                                         "runSpec": {"interpreter": "bash",
+                                                     "code": "echo 'hello'"}
+                                         })['id']
+        job_id = run("dx run " + applet_id + " --depends-on " + sub_applet0_id + " -d " + sub_applet1_id) #--depends-on and -d are aliases
+        job_desc = dxpy.api.job_describe(job_id)
+        self.assertEqual(job_desc['depends_on'][0], sub_applet0_id)
+        self.assertEqual(job_desc['depends_on'][1], sub_applet1_id)
+
+        job_id = run("dx run " + applet_id)
+        job_desc = dxpy.api.job_describe(job_id)
+        self.assertEquals(job_desc['depends_on'], [])
+
+        with self.assertSubprocessFailure(stderr_regexp='requires', exit_code=3):
+            run("dx run " + applet_id + " --depends-on " + sub_applet1_id + " --depends-on ")
+
+        with self.assertSubprocessFailure(stderr_regexp='requires', exit_code=3):
+            run("dx run " + applet_id + " -d " + " --depends-on " + sub_applet0_id)
+
+        # job_id = run("dx run " + applet_id + " --depends-on " + sub_applet1_id + " --depends-on ")
+        # job_desc = dxpy.api.job_describe(job_id)
+        # #TODO: Enforce that this errors
+
+        # job_id = run("dx run " + applet_id + " -d " + " --depends-on " + sub_applet0_id)
+        # job_desc = dxpy.api.job_describe(job_id)
+        # #TODO: Enforce that this errors
 
     def test_dx_run_no_hidden_executables(self):
         # hidden applet
