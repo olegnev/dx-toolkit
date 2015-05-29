@@ -79,7 +79,9 @@ class DXExecutable:
                     elif isinstance(item, basestring):
                         run_input['dependsOn'].append(item)
                     else:
-                        raise DXError('Expected elements of depends_on to only be either instances of DXJob or DXDataObject, or strings')
+                        print("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH") #kwargs['depends_on'] is a list of lists, where each ID is a singular list
+                        print(type(item), item)
+                        raise DXError('Expected elements of depends_on to only be either instances of DXJob or DXDataObject, or strings' + " --------- " + str(kwargs['depends_on']))
             else:
                 raise DXError('Expected depends_on field to be a list')
 
@@ -177,7 +179,9 @@ class DXExecutable:
         # stage_instance_types, stage_folders, and rerun_stages are
         # only supported for workflows, but we include them
         # here. Applet-based executables should detect when they
-        # receive a truthy workflow-specific value and raise an error.
+        # # receive a truthy workflow-specific value and raise an error.
+        # print("DEPENDS ON FROM DXAPPLET: ")
+        # print(depends_on)
         run_input = self._get_run_input(executable_input,
                                         project=project,
                                         folder=folder,

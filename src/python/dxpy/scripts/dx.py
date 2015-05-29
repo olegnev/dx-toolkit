@@ -2381,6 +2381,7 @@ def run_one(args, executable, dest_proj, dest_path, preset_inputs=None, input_na
         "tags": args.tags,
         "properties": args.properties,
         "details": args.details,
+        "depends_on": args.depends_on if args.depends_on else None,
         "allow_ssh": args.allow_ssh,
         "debug": {"debugOn": args.debug_on} if args.debug_on else None,
         "delay_workspace_destruction": args.delay_workspace_destruction,
@@ -3147,6 +3148,18 @@ def exit_shell(args):
     if state['interactive']:
         raise StopIteration()
 
+class updateDepends(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        pass
+        #setattr(namespace, 'dependsOn', ["HELLO HELLO HELLO"])
+        # if hasattr(namespace, 'dependsOn'):
+        #     setattr(namespace, 'dependsOn', getattr(namespace, 'dependsOn') + values)
+        # else:
+        #     setattr(namespace, 'dependsOn', values)
+
+        #print("THIS IS BEING PRINTED OUT AND IS THE NEW JOB ID")
+        #Anything printed here to stdout will become the job id returned by dxpy.describe
+
 class runHelp(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if namespace.executable is None:
@@ -3782,6 +3795,15 @@ run_executable_action = parser_run.add_argument('executable',
                                                 nargs="?", default="")
 run_executable_action.completer = MultiCompleter([DXAppCompleter(),
                                                   DXPathCompleter(classes=['applet', 'workflow'], visibility="visible")])
+
+#TODO: Add --depends-on option here
+
+#********************
+parser_run.add_argument('-d', '--depends-on', help=fill('Single job ID whose completion this applet requires. Repeat option for every job ID given', width_adjustment=-24), 
+                        nargs=1, action='append', default=[], type=str, required=False) #EDIT THIS: Try making default None
+
+#********************
+
 parser_run.add_argument('-h', '--help', help='show this help message and exit', nargs=0, action=runHelp)
 parser_run.add_argument('--clone', help=fill('Job or analysis ID or name from which to use as default options (will use the exact same executable ID, destination project and folder, job input, instance type requests, and a similar name unless explicitly overridden by command-line arguments)', width_adjustment=-24))
 parser_run.add_argument('--alias', '--version', dest='alias',
