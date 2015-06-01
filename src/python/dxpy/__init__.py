@@ -167,8 +167,7 @@ SESSION_HANDLERS = collections.defaultdict(requests.session)
 
 DEFAULT_RETRIES = 6
 DEFAULT_TIMEOUT = 600
-MAX_RETRY_TIMEOUT = 60
-DEFAULT_RETRY_AFTER_INTERVAL = 60
+DEFAULT_RETRY_AFTER_503_INTERVAL = 60
 
 _DEBUG = 0  # debug verbosity level
 _UPGRADE_NOTIFY = True
@@ -245,13 +244,13 @@ def _extract_exception_msg():
 def _extract_retry_after_timeout(response):
     ''' Figure out the time the server is asking us to wait, in an http response '''
     try:
-        seconds_to_wait = int(response.headers.get('retry-after', DEFAULT_RETRY_AFTER_INTERVAL))
+        seconds_to_wait = int(response.headers.get('retry-after', DEFAULT_RETRY_AFTER_503_INTERVAL))
     except ValueError:
         # retry-after could be formatted as absolute time
         # instead of seconds to wait. We don't know how to
         # parse that, but the apiserver doesn't generate
         # such responses anyway.
-        seconds_to_wait = DEFAULT_RETRY_AFTER_INTERVAL
+        seconds_to_wait = DEFAULT_RETRY_AFTER_503_INTERVAL
     return max(1, seconds_to_wait)
 
 
@@ -445,6 +444,7 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
                 # iteration of the loop, try_index is equal to the number of
                 # tries that have failed so far, minus one. Test whether we
                 # have exhausted all retries.
+                ok_to_retry = False
                 if try_index + 1 < total_allowed_tries:
                     if response is None or isinstance(e, exceptions.ContentLengthError) or \
                        streaming_response_truncated:
@@ -455,7 +455,7 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
                 if ok_to_retry:
                     if rewind_input_buffer_offset is not None:
                         data.seek(rewind_input_buffer_offset)
-                    delay = min(2 ** try_index, MAX_RETRY_TIMEOUT)
+                    delay = min(2 ** try_index, DEFAULT_TIMEOUT)
                     logger.warn("%s %s: %s. Waiting %d seconds before retry %d of %d..."
                                 % (method, url, exception_msg, delay, try_index + 1, max_retries))
                     time.sleep(delay)
