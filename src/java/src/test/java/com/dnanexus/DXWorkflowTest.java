@@ -161,11 +161,11 @@ public class DXWorkflowTest {
         DXWorkflow workflow = DXWorkflow.newWorkflow().setProject(testProject).build();
 
         // Create an applet to be added to the workflow and some inputs to be supplied to it
-        InputParameter input1 = InputParameter.newInputParameter("input_string", IOClass.STRING)
-                .build();
-        InputParameter input2 = InputParameter.newInputParameter("input_record", IOClass.RECORD)
-                .build();
-        OutputParameter output1 = OutputParameter.newOutputParameter("output_record",
+        InputParameter inputString = InputParameter.newInputParameter("input_string",
+                IOClass.STRING).build();
+        InputParameter inputRecord = InputParameter.newInputParameter("input_record",
+                IOClass.RECORD).build();
+        OutputParameter outputRecord = OutputParameter.newOutputParameter("output_record",
                 IOClass.RECORD).build();
 
         DXRecord myRecord = DXRecord.newRecord().setProject(testProject).setName("myRecord")
@@ -176,25 +176,25 @@ public class DXWorkflowTest {
         DXApplet applet = DXApplet.newApplet().setProject(testProject)
                 .setName("applet_for_java_test")
                 .setRunSpecification(RunSpecification.newRunSpec("bash", code).build())
-                .setInputSpecification(ImmutableList.of(input1, input2))
-                .setOutputSpecification(ImmutableList.of(output1)).build();
+                .setInputSpecification(ImmutableList.of(inputString, inputRecord))
+                .setOutputSpecification(ImmutableList.of(outputRecord)).build();
 
         // ---
         // Here is some low-level code for building up the workflow. Eventually there will be
         // high-level bindings to this functionality.
-        WorkflowAddStageInput addStage0 = new WorkflowAddStageInput();
-        addStage0.editVersion = 0;
-        addStage0.executable = applet.getId();
+        WorkflowAddStageInput addStage0Input = new WorkflowAddStageInput();
+        addStage0Input.editVersion = 0;
+        addStage0Input.executable = applet.getId();
 
         WorkflowAddStageOutput addStage0Output = DXAPI.workflowAddStage(workflow.getId(),
-                addStage0, WorkflowAddStageOutput.class);
+                addStage0Input, WorkflowAddStageOutput.class);
 
-        WorkflowAddStageInput addStage1 = new WorkflowAddStageInput();
-        addStage1.editVersion = addStage0Output.editVersion;
-        addStage1.executable = applet.getId();
+        WorkflowAddStageInput addStage1Input = new WorkflowAddStageInput();
+        addStage1Input.editVersion = addStage0Output.editVersion;
+        addStage1Input.executable = applet.getId();
 
         WorkflowAddStageOutput addStage1Output = DXAPI.workflowAddStage(workflow.getId(),
-                addStage1, WorkflowAddStageOutput.class);
+                addStage1Input, WorkflowAddStageOutput.class);
         // End low-level code
         // ---
 
