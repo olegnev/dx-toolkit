@@ -229,6 +229,7 @@ def _is_retryable_exception(e):
     except (AttributeError, TypeError, IndexError):
         return False
 
+
 def _extract_exception_msg():
     ''' Extract a useful error message from an exception '''
     last_exc_type, last_error, last_traceback = sys.exc_info()
@@ -240,6 +241,7 @@ def _extract_exception_msg():
         return last_error.error_message()
     else:
         return traceback.format_exc().splitlines()[-1].strip()
+
 
 def _extract_retry_after_timeout(response):
     ''' Figure out the time the server is asking us to wait, in an http response '''
