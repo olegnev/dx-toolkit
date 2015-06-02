@@ -230,8 +230,8 @@ def _is_retryable_exception(e):
         return False
 
 
-def _extract_exception_msg():
-    ''' Extract a useful error message from an exception '''
+def _extract_msg_from_last_exception():
+    ''' Extract a useful error message from the last thrown exception '''
     last_exc_type, last_error, last_traceback = sys.exc_info()
     if isinstance(last_error, exceptions.DXAPIError):
         # Using the same code path as below would not
@@ -244,7 +244,8 @@ def _extract_exception_msg():
 
 
 def _extract_retry_after_timeout(response):
-    ''' Figure out the time the server is asking us to wait, in an http response '''
+    '''Returns the time in seconds that the server is asking us to
+    wait. The information is deduced from the server http response.'''
     try:
         seconds_to_wait = int(response.headers.get('retry-after', DEFAULT_RETRY_AFTER_503_INTERVAL))
     except ValueError:
@@ -427,7 +428,7 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
         except Exception as e:
             success = False
             if isinstance(e, _expected_exceptions):
-                exception_msg = _extract_exception_msg()
+                exception_msg = _extract_msg_from_last_exception()
                 if response is not None and response.status_code == 503:
                     seconds_to_wait = _extract_retry_after_timeout(response)
                     logger.warn("%s %s: %s. Waiting %d seconds due to server unavailability..."
@@ -442,11 +443,11 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
                 # Total number of allowed tries is the initial try + up to
                 # (max_retries) subsequent retries.
                 total_allowed_tries = max_retries + 1
+                ok_to_retry = False
                 # Because try_index is not incremented until we escape this
                 # iteration of the loop, try_index is equal to the number of
                 # tries that have failed so far, minus one. Test whether we
                 # have exhausted all retries.
-                ok_to_retry = False
                 if try_index + 1 < total_allowed_tries:
                     if response is None or isinstance(e, exceptions.ContentLengthError) or \
                        streaming_response_truncated:
