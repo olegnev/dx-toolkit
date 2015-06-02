@@ -491,7 +491,8 @@ class DXFile(DXDataObject):
         # The file upload API requires us to get a pre-authenticated upload URL (and headers for it) every time we
         # attempt an upload. Because DXHTTPRequest will retry requests under retryable conditions, we give it a callback
         # to ask us for a new upload URL every time it attempts a request (instead of giving them directly).
-        dxpy.DXHTTPRequest(get_upload_url_and_headers, data,
+        dxpy.DXHTTPRequest(get_upload_url_and_headers,
+                           data,
                            jsonify_data=False,
                            prepend_srv=False,
                            always_retry=True, timeout=FILE_REQUEST_TIMEOUT,
