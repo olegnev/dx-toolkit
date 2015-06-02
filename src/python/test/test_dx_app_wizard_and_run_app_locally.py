@@ -451,7 +451,6 @@ class TestDXBashHelpers(DXTestCase):
 
     def test_file_optional(self):
         ''' Tests that file optional input arguments are handled correctly '''
-        dxpy.upload_string("1234", wait_on_close=True, name="A.txt")
         self.run_test_app_locally('file_optional', [])
 
 if __name__ == '__main__':

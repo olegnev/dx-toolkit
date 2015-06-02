@@ -109,7 +109,7 @@ def report_error_and_exit(err_type, message):
             "message": message
         }
     }
-    sys.stderr.write("{} {}\n".format(err_type, message))
+    sys.stderr.write("{}: {}\n".format(err_type, message))
     with open(os.path.expanduser(os.path.join('~', 'job_error.json')), 'w') as error_file:
         error_file.write(json.dumps(error_hash, indent=4) + '\n')
     sys.exit(1)
@@ -353,7 +353,7 @@ def update_output_json(subdir_recs):
             return dxlinks[0]
         else:
             report_error_and_exit(
-                "OutputError",
+                "AppInternalError",
                 "Type mismatch, key {} is of type {}, json={} num_dxlinks={}".
                 format(key, class_, type(output_json[key]), len(dxlinks)))
 
