@@ -495,7 +495,8 @@ class DXFile(DXDataObject):
                            data,
                            jsonify_data=False,
                            prepend_srv=False,
-                           always_retry=True, timeout=FILE_REQUEST_TIMEOUT,
+                           always_retry=True,
+                           timeout=FILE_REQUEST_TIMEOUT,
                            auth=None)
 
         self._num_uploaded_parts += 1
