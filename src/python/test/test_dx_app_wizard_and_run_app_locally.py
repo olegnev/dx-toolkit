@@ -451,7 +451,7 @@ class TestDXBashHelpers(DXTestCase):
 
     def test_file_optional(self):
         ''' Tests that file optional input arguments are handled correctly '''
-        self.run_test_app_locally('file_optional', [])
+        self.run_test_app_locally('file_optional', ["-icreate_seq3=true"])
 
 if __name__ == '__main__':
     unittest.main()

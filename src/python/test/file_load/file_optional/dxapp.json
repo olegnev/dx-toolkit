@@ -6,9 +6,10 @@
     "interpreter": "bash"
   },
   "inputSpec": [
-    {"name": "seq1", "class": "file", "optional" : true}
+    {"name": "create_seq3", "class" : "boolean" }
   ],
   "outputSpec": [
-    {"name": "seq2", "class": "file", "optional" : true}
+    {"name": "seq2", "class": "file", "optional" : true},
+    {"name": "seq3", "class": "file"}
   ]
 }

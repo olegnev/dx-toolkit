@@ -257,9 +257,21 @@ class TestDXBashHelpers(DXTestCase):
                 os.path.join(TEST_APPS, 'file_optional'),
                 dxproj.get_id())
 
-            # Run the applet, in this case, we don't give any file inputs
-            cmd_args = ['dx', 'run', '--yes', '--watch', applet_id]
-            run(cmd_args, env=env)
+            # Run the applet
+            applet_args = ["-icreate_seq3=true"]
+            cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
+            cmd_args.extend(applet_args)
+            job_id = run(cmd_args, env=env).strip()
+            print("job_id={}".format(job_id))
+            dxpy.DXJob(job_id).wait_on_done()
+
+            # Run the applet --- this will not create the seq3 output file
+            applet_args = ["-icreate_seq3=false"]
+            cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
+            cmd_args.extend(applet_args)
+            job_id = run(cmd_args, env=env).strip()
+            print("job_id={}".format(job_id))
+            dxpy.DXJob(job_id).wait_on_done()
 
     def test_prefix_patterns(self):
         """ Tests that the bash prefix variable works correctly, and
