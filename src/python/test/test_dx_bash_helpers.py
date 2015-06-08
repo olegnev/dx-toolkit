@@ -266,6 +266,7 @@ class TestDXBashHelpers(DXTestCase):
             dxpy.DXJob(job_id).wait_on_done()
 
             # Run the applet --- this will not create the seq3 output file
+            # This should cause an expcetion from the job manager
             applet_args = ["-icreate_seq3=false"]
             cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
             cmd_args.extend(applet_args)
