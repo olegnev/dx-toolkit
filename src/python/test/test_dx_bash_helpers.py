@@ -28,6 +28,7 @@ import pipes
 import dxpy
 from dxpy_testutil import DXTestCase, check_output, temporary_project
 import dxpy_testutil as testutil
+from dxpy.exceptions import DXJobFailureError
 
 def run(command, **kwargs):
     try:
@@ -270,9 +271,10 @@ class TestDXBashHelpers(DXTestCase):
             applet_args = ["-icreate_seq3=false"]
             cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
             cmd_args.extend(applet_args)
-            job_id = run(cmd_args, env=env).strip()
-            print("job_id={}".format(job_id))
-            dxpy.DXJob(job_id).wait_on_done()
+            with self.assertRaises(DXJobFailureError):
+                job_id = run(cmd_args, env=env).strip()
+                print("job_id={}".format(job_id))
+                dxpy.DXJob(job_id).wait_on_done()
 
     def test_prefix_patterns(self):
         """ Tests that the bash prefix variable works correctly, and

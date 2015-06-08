@@ -3,10 +3,10 @@ main() {
 
     mkdir -p out/seq2
 
-    if [ -n "$create_seq3" ]
+    if [[ "$create_seq3" == "true" ]];
     then
         mkdir -p out/seq3
-        echo "abcd" > out/seq3/X.txt
+        echo "abcd-$create_seq3" > out/seq3/X.txt
     fi
 
     dx-upload-all-outputs
