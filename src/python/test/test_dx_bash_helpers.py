@@ -247,6 +247,7 @@ class TestDXBashHelpers(DXTestCase):
             cmd_args.extend(applet_args)
             run(cmd_args, env=env)
 
+    @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping test that would run a job')
     def test_file_optional(self):
         ''' Tests that optional and non-optional file output arguments are
         handled correctly '''
@@ -270,7 +271,7 @@ class TestDXBashHelpers(DXTestCase):
             dxpy.DXJob(job_id).wait_on_done()
 
             # Run the applet --- this will not create the seq3 output file.
-            # This should cause an expcetion from the job manager.
+            # This should cause an exception from the job manager.
             applet_args = ["-icreate_seq3=false"]
             cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
             cmd_args.extend(applet_args)
