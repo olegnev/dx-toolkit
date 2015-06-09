@@ -248,7 +248,8 @@ class TestDXBashHelpers(DXTestCase):
             run(cmd_args, env=env)
 
     def test_file_optional(self):
-        ''' Tests that file optional input and output arguments are handled correctly '''
+        ''' Tests that optional and non-optional file output arguments are
+        handled correctly '''
         with temporary_project('TestDXBashHelpers.test_app1 temporary project') as dxproj:
             env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
 
@@ -258,23 +259,27 @@ class TestDXBashHelpers(DXTestCase):
                 os.path.join(TEST_APPS, 'file_optional'),
                 dxproj.get_id())
 
-            # Run the applet
+            # Run the applet. This checks a correct scenario where
+            # the applet generates:
+            # 1) an empty directory for an optional file output
+            # 2) a file for a non-optional file output.
             applet_args = ["-icreate_seq3=true"]
             cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
             cmd_args.extend(applet_args)
             job_id = run(cmd_args, env=env).strip()
-            print("job_id={}".format(job_id))
             dxpy.DXJob(job_id).wait_on_done()
 
-            # Run the applet --- this will not create the seq3 output file
-            # This should cause an expcetion from the job manager
+            # Run the applet --- this will not create the seq3 output file.
+            # This should cause an expcetion from the job manager.
             applet_args = ["-icreate_seq3=false"]
             cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
             cmd_args.extend(applet_args)
+            job_id = run(cmd_args, env=env).strip()
+            job = dxpy.DXJob(job_id)
             with self.assertRaises(DXJobFailureError):
-                job_id = run(cmd_args, env=env).strip()
-                print("job_id={}".format(job_id))
-                dxpy.DXJob(job_id).wait_on_done()
+                job.wait_on_done()
+            desc = job.describe()
+            self.assertEqual(desc["failureReason"], "OutputError")
 
     def test_prefix_patterns(self):
         """ Tests that the bash prefix variable works correctly, and
