@@ -295,7 +295,7 @@ class DXDataObject(DXObject):
 
         return self._proj
 
-    def describe(self, default_fields=True, fields=None, incl_properties=False, incl_details=False, **kwargs):
+    def describe(self, fields=None, default_fields=None, incl_properties=False, incl_details=False, **kwargs):
         """
         :param incl_properties: If true, includes the properties of the object in the output
         :type incl_properties: boolean
@@ -327,13 +327,17 @@ class DXDataObject(DXObject):
                 _class=self._class)
             )
 
-        if (incl_properties or incl_details) and (fields is not None or not default_fields):
+        if (incl_properties or incl_details) and (fields is not None or default_fields is not None):
             raise ValueError('Cannot specify properties or details in conjunction with fields or default_fields')
 
         if incl_properties or incl_details:
             describe_input = dict(properties=incl_properties, details=incl_details)
-        else if fields is not None or not default_fields:
-            describe_input = dict(defaultFields=default_fields, fields=fields)
+        else if fields is not None or default_fields is not None:
+            describe_input = {}
+            if default_fields is not None:
+                describe_input['defaultFields'] = default_fields
+            if fields is not None:
+                describe_input['fields'] = {field_name: True for field_name in fields}
         else:
             describe_input = {}
 
@@ -608,7 +612,7 @@ class DXDataObject(DXObject):
 
         '''
 
-        return self.describe(default_fields=False, fields=dict(state=True), **kwargs)["state"]
+        return self.describe(fields={'state'}, **kwargs)["state"]
 
     def _wait_on_close(self, timeout=3600*24*1, **kwargs):
         elapsed = 0
