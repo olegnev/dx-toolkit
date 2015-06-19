@@ -297,23 +297,38 @@ class DXDataObject(DXObject):
 
     def describe(self, fields=None, default_fields=None, incl_properties=False, incl_details=False, **kwargs):
         """
-        :param incl_properties: If true, includes the properties of the object in the output
-        :type incl_properties: boolean
-        :param incl_details: If true, includes the details of the object in the output
-        :type incl_details: boolean
+        :param fields: set of fields to include in the output, for
+            example ``{'name', 'modified'}``. The field ``id`` is always
+            included. If specified, the default fields are not included
+            (that is, only the fields specified here are included)
+            unless ``default_fields`` is additionally set to True.
+        :type fields: set or sequence of str
+        :param default_fields: if True, include the default fields in
+            addition to fields requested in ``fields``, if any; if
+            False, only the fields specified in ``fields`` are returned
+            (defaults to False if ``fields`` is specified, True
+            otherwise)
+        :type default_fields: bool
+        :param incl_properties: if true, includes the properties of the
+            object in the output (deprecated; use
+            ``fields={'properties'}, default_fields=True`` instead)
+        :type incl_properties: bool
+        :param incl_details: if true, includes the details of the object
+            in the output (deprecated; use ``fields={'details'},
+            default_fields=True`` instead)
+        :type incl_details: bool
         :returns: Description of the remote object
         :rtype: dict
 
-        Returns a dict with a description of the remote data object. The
-        result includes the key-value pairs as specified in the API
-        documentation for the ``/describe`` method of each data object
-        class. At a minimum, "id", "class", etc. should be available,
-        but different classes of objects may have additional fields.
+        Return a dict with a description of the remote data object.
 
-        If *incl_properties* is set, the output contains an additional
-        key-value pair with key "properties". If *incl_details* is set,
-        the output contains an additional key-value pair with key
-        "details".
+        The result includes the key-value pairs as specified in the API
+        documentation for the ``/describe`` method of each data object
+        class. The API defines some default set of fields that will be
+        included (at a minimum, "id", "class", etc. should be available,
+        and there may be additional fields that vary based on the
+        class); the set of fields may be customized using ``fields`` and
+        ``default_fields``.
 
         Any project-specific metadata fields (name, properties, and
         tags) are obtained from the copy of the object in the project
