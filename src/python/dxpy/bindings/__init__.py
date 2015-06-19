@@ -347,14 +347,12 @@ class DXDataObject(DXObject):
 
         if incl_properties or incl_details:
             describe_input = dict(properties=incl_properties, details=incl_details)
-        elif fields is not None or default_fields is not None:
+        else:
             describe_input = {}
             if default_fields is not None:
                 describe_input['defaultFields'] = default_fields
             if fields is not None:
                 describe_input['fields'] = {field_name: True for field_name in fields}
-        else:
-            describe_input = {}
 
         if self._proj is not None:
             describe_input["project"] = self._proj
