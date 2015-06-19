@@ -332,7 +332,7 @@ class DXDataObject(DXObject):
 
         if incl_properties or incl_details:
             describe_input = dict(properties=incl_properties, details=incl_details)
-        else if fields is not None or default_fields is not None:
+        elif fields is not None or default_fields is not None:
             describe_input = {}
             if default_fields is not None:
                 describe_input['defaultFields'] = default_fields
