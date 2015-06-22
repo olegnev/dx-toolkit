@@ -761,7 +761,7 @@ def ls(args):
                         print(BOLD() + 'State' + DELIMITER('\t') + 'Last modified' + DELIMITER('       ') + 'Size' + DELIMITER('     ') + 'Name' + DELIMITER(' (') + 'ID' + DELIMITER(')') + ENDC())
                     else:
                         print("No data objects found in the folder")
-                if not (args.brief or args.verbose):
+                if not args.brief and not args.verbose:
                     name_counts = collections.Counter(obj['describe']['name'] for obj in resp['objects'])
                 for obj in resp['objects']:
                     if args.brief:

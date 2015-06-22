@@ -299,14 +299,15 @@ class DXDataObject(DXObject):
         """
         :param fields: set of fields to include in the output, for
             example ``{'name', 'modified'}``. The field ``id`` is always
-            included. If specified, the default fields are not included
-            (that is, only the fields specified here are included)
-            unless ``default_fields`` is additionally set to True.
+            implicitly included. If ``fields`` is specified, the default
+            fields are not included (that is, only the fields specified
+            here, and ``id``, are included) unless ``default_fields`` is
+            additionally set to True.
         :type fields: set or sequence of str
         :param default_fields: if True, include the default fields in
             addition to fields requested in ``fields``, if any; if
-            False, only the fields specified in ``fields`` are returned
-            (defaults to False if ``fields`` is specified, True
+            False, only the fields specified in ``fields``, if any, are
+            returned (defaults to False if ``fields`` is specified, True
             otherwise)
         :type default_fields: bool
         :param incl_properties: if true, includes the properties of the
