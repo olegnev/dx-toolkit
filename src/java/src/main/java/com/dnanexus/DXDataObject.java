@@ -957,9 +957,8 @@ public abstract class DXDataObject extends DXObject {
     public DXDataObject closeAndWait() {
         DXDataObject obj = this.close();
         // TODO: allow supplying a timeout
-        DataObjectState currentState = this.describe(
-                DescribeOptions.get().withCustomFields(ImmutableList.of("state"))).getState();
-        while (currentState != DataObjectState.CLOSED) {
+        while (this.describe(DescribeOptions.get().withCustomFields(ImmutableList.of("state")))
+                .getState() != DataObjectState.CLOSED) {
             // TODO: some kind of exponential backoff so short requests don't
             // take 2000ms to complete
             try {
