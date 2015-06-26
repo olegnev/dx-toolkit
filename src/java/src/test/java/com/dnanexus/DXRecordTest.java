@@ -28,7 +28,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 
 public class DXRecordTest {
 
@@ -126,8 +125,8 @@ public class DXRecordTest {
 
         // Retrieve some fields and verify that the ones we want are there and the ones we don't
         // want are not there
-        DXRecord.Describe describe = record.describe(DescribeOptions.get().withCustomFields(
-                ImmutableList.of("name", "created", "details", "folder", "modified")));
+        DXRecord.Describe describe = record.describe(DescribeOptions.get().withCustomFields("name",
+                "created", "details", "folder", "modified"));
 
         Assert.assertEquals("foo", describe.getName());
         Assert.assertTrue(describe.getCreationDate().getTime() > 0);
@@ -172,8 +171,8 @@ public class DXRecordTest {
         }
 
         // Now retrieve the complementary set of fields and do the same
-        describe = record.describe(DescribeOptions.get().withCustomFields(
-                ImmutableList.of("project", "properties", "state", "tags", "types", "hidden")));
+        describe = record.describe(DescribeOptions.get().withCustomFields("project", "properties",
+                "state", "tags", "types", "hidden"));
         Assert.assertEquals(testProject, describe.getProject());
         Assert.assertTrue(describe.getProperties().isEmpty());
         Assert.assertEquals(DataObjectState.OPEN, describe.getState());

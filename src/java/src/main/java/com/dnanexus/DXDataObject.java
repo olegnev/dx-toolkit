@@ -601,7 +601,19 @@ public abstract class DXDataObject extends DXObject {
 
         /**
          * Returns a {@code DescribeOptions} that behaves like the current one, except that only the
-         * requested fields will be included in the result.
+         * specified fields will be included in the result.
+         *
+         * @param fieldNamesToInclude API fields to be included
+         *
+         * @return a new {@code DescribeOptions} object
+         */
+        public DescribeOptions withCustomFields(String... fieldNamesToInclude) {
+            return this.withCustomFields(Lists.newArrayList(fieldNamesToInclude));
+        }
+
+        /**
+         * Returns a {@code DescribeOptions} that behaves like the current one, except that only the
+         * fields in the specified collection will be included in the result.
          *
          * @param fieldNamesToInclude collection of API fields to be included
          *
