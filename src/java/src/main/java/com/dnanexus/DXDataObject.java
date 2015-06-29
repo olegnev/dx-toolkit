@@ -590,6 +590,8 @@ public abstract class DXDataObject extends DXObject {
         /**
          * Returns a {@code DescribeOptions} that behaves like the current one, except that
          * project-specific metadata will be retrieved from the specified project or container.
+         * Attempts to invoke accessors on the resulting {@link Describe} object corresponding to
+         * fields that were not requested will throw {@link IllegalStateException}.
          *
          * @param project project or container from which to obtain project-specific metadata
          *
@@ -601,7 +603,9 @@ public abstract class DXDataObject extends DXObject {
 
         /**
          * Returns a {@code DescribeOptions} that behaves like the current one, except that only the
-         * specified fields will be included in the result.
+         * specified fields will be included in the result. Attempts to invoke accessors on the
+         * resulting {@link Describe} object corresponding to fields that were not requested will
+         * throw {@link IllegalStateException}.
          *
          * @param fieldNamesToInclude API fields to be included
          *
