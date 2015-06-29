@@ -189,9 +189,6 @@ public class DXAppletTest {
                 .setOutputSpecification(ImmutableList.of(output1))
                 .build();
 
-        // description, version, input, output
-        // runSpec, summary, title
-
         // Retrieve some fields and verify that the ones we want are there and the ones we don't
         // want are not there
         DXApplet.Describe describe = a.describe(DescribeOptions.get().withCustomFields(

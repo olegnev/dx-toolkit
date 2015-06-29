@@ -621,8 +621,9 @@ public abstract class DXDataObject extends DXObject {
          */
         public DescribeOptions withCustomFields(Collection<? extends String> fieldNamesToInclude) {
             Preconditions.checkNotNull(fieldNamesToInclude);
-            Preconditions.checkState(this.properties == null && this.details == null,
-                    "withDetails or withProperties may not be used with fieldNamesToInclude");
+            Preconditions.checkState(this.properties == null,
+                    "withProperties may not be used with fieldNamesToInclude");
+            Preconditions.checkState(this.details == null, "withDetails may not be used with fieldNamesToInclude");
             ImmutableMap.Builder<String, Boolean> fieldMap = ImmutableMap.builder();
             for (String fieldNameToInclude : fieldNamesToInclude) {
                 fieldMap.put(fieldNameToInclude, true);
