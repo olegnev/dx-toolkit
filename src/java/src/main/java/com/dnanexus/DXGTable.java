@@ -142,8 +142,8 @@ public class DXGTable extends DXDataObject {
          */
         public long getNumRows() {
             Preconditions.checkState(this.length != null,
-                    "Row count is not available because table was open or "
-                            + "because it was not retrieved with the describe call");
+                    "row count is not available because table was open or "
+                            + "because row count was not retrieved with the describe call");
             return this.length;
         }
     }
