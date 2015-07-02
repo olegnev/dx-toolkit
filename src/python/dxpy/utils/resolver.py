@@ -532,6 +532,98 @@ def resolve_job_ref(job_id, name, describe={}):
 
     return results
 
+
+def _validate_results_length_and_resolve_folder(path, project, folderpath, entity_name, results,
+                                                allow_mult=False, all_mult=False, ask_to_resolve=True):
+    """
+    :param path: Path to the object that required resolution
+    :type path: string
+    :param project: The project that the object belongs to
+    :type project: string
+    :param folderpath: Full path to the folder containing the object
+    :type folderpath: string
+    :param entity_name: Name of the object
+    :type entity_name: string
+    :param results: Result of resolution; list of object specifications
+                    (each specification is a dictionary with keys,
+                    "project" and "id")
+    :type results: list
+    :param allow_mult: If True, it is okay to choose from multiple results
+                       of a single resolved object, or return all results
+                       found; if False, raise an error if multiple results
+                       are found
+    :type allow_mult: boolean
+    :param all_mult: If True, return all results if multiple results are
+                     found for a single resolved object; if False, user needs
+                     to choose a single result if multiple are found (can
+                     only be True if allow_mult is True)
+    :type all_mult: boolean
+    :param ask_to_resolve: Whether picking may be necessary (if True, a
+                           list is returned; if False, only one result
+                           is returned); if specified as True, then all
+                           results will be returned, regardless of the
+                           values of allow_mult and all_mult
+    :type ask_to_resolve: boolean
+    :returns: Dictionary with keys "project", "folder", and "name", where
+              the values are potentially modified to reflect the number
+              of results returned
+    :rtype: dict
+    :raises: ResolutionError if too many results are found or not enough
+
+    Validates length of results. Returns a dictionary that is a mapping of
+    "project", "folder", and "name", where "name" corresponds to either a
+    successfully resolved ID, or None.
+
+    If no results are found, then values are Nones.
+    If too many are found, the user is prompted to pick one if the user is
+    in interactive mode. Otherwise, the values are Nones.
+    If no results are found because the entity is a folder, then only "name"
+    is None, and "folder" is the potential folder that is found.
+    """
+    if len(results) == 0:
+        # Could not find it as a data object.  If anything, it's a
+        # folder.
+        if '/' in entity_name:
+            # Then there's no way it's supposed to be a folder
+            raise ResolutionError('Object of name ' + str(entity_name) + ' could not be resolved in folder ' +
+                                  str(folderpath) + ' of project ID ' + str(project))
+
+        # This is the only possibility left.  Leave the
+        # error-checking for later.
+        possible_folder, _skip = clean_folder_path(folderpath + '/' + entity_name, 'folder')
+
+        # Check that the folder specified actually exists, and raise error if it doesn't
+        if not check_folder_exists(project, folderpath, entity_name):
+            raise ResolutionError('Unable to resolve "' + entity_name +
+                                  '" to a data object or folder name in \'' + folderpath + "'")
+        return {"project": project, "folder": possible_folder, "name": None}
+
+    # Caller wants ALL results, so return the entire results list
+    # At this point, do not care about the values of allow_mult or all_mult
+    if not ask_to_resolve:
+        return {"project": project, "folder": None, "name": results}
+
+    if len(results) > 1:
+        # The other way the caller can specify it wants all results is by setting
+        # allow_mult to be True and allowing all_mult to be True (or if the object name is a global pattern)
+        if allow_mult and (all_mult or is_glob_pattern(entity_name)):
+            return project, None, results
+        if INTERACTIVE_CLI:
+            print('The given path "' + path + '" resolves to the following data objects:')
+            choice = pick([get_ls_l_desc(result['describe']) for result in results],
+                          allow_mult=allow_mult)
+            if allow_mult and choice == '*':
+                return {"project": project, "folder": None, "name": results}
+            else:
+                name_value = [results[choice]] if allow_mult else results[choice]
+                return {"project": project, "folder": None, "name": name_value}
+        else:
+            raise ResolutionError('The given path "' + path + '" resolves to ' +
+                                  str(len(results)) + ' data objects')
+    elif len(results) == 1:
+        name_value = [results[0]] if allow_mult else results[0]
+        return {"project": project, "folder": None, "name": name_value}
+
 def resolve_existing_path(path, expected=None, ask_to_resolve=True, expected_classes=None, allow_mult=False, describe={}, all_mult=False, allow_empty_string=True,
                           visibility="either"):
     '''
@@ -625,43 +717,15 @@ def resolve_existing_path(path, expected=None, ask_to_resolve=True, expected_cla
                                                       visibility=visibility))
             except Exception as details:
                 raise ResolutionError(str(details))
-        if len(results) == 0:
-            # Could not find it as a data object.  If anything, it's a
-            # folder.
-            if '/' in entity_name:
-                # Then there's no way it's supposed to be a folder
-                raise ResolutionError(msg)
-
-            # This is the only possibility left.  Leave the
-            # error-checking for later.  Note that folderpath does
-            possible_folder = folderpath + '/' + entity_name
-            possible_folder, _skip = clean_folder_path(possible_folder, 'folder')
-
-            # Check that the folder specified actually exists, and raise error if it doesn't
-            if not check_folder_exists(project, folderpath, entity_name):
-                raise ResolutionError('Unable to resolve "' + entity_name +
-                                      '" to a data object or folder name in \'' + folderpath + "'")
-            return project, possible_folder, None
-
-        # Caller wants ALL results; just return the whole thing
-        if not ask_to_resolve:
-            return project, None, results
-
-        if len(results) > 1:
-            if allow_mult and (all_mult or is_glob_pattern(entity_name)):
-                return project, None, results
-            if INTERACTIVE_CLI:
-                print('The given path "' + path + '" resolves to the following data objects:')
-                choice = pick([get_ls_l_desc(result['describe']) for result in results],
-                              allow_mult=allow_mult)
-                if allow_mult and choice == '*':
-                    return project, None, results
-                else:
-                    return project, None, ([results[choice]] if allow_mult else results[choice])
-            else:
-                raise ResolutionError('The given path "' + path + '" resolves to ' + str(len(results)) + ' data objects')
-        elif len(results) == 1:
-            return project, None, ([results[0]] if allow_mult else results[0])
+        validated_results = _validate_results_length_and_resolve_folder(path,
+                                                                        project,
+                                                                        folderpath,
+                                                                        entity_name,
+                                                                        results,
+                                                                        allow_mult=allow_mult,
+                                                                        all_mult=all_mult,
+                                                                        ask_to_resolve=ask_to_resolve)
+        return validated_results['project'], validated_results['folder'], validated_results['name']
 
 
 def check_folder_exists(project, path, folder_name):
