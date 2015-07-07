@@ -19,8 +19,7 @@ This submodule gives basic utilities for printing to the terminal.
 '''
 
 import textwrap, subprocess, os, sys
-from .env import sys_encoding
-from ..compat import USING_PYTHON2
+from ..compat import USING_PYTHON2, sys_encoding
 from ..exceptions import DXCLIError
 
 if sys.stdout.isatty():
@@ -104,11 +103,9 @@ def set_delimiter(delim=None):
     delimiter = delim
 
 def get_delimiter(delim=None):
-    global delimiter
     return delimiter
 
 def DELIMITER(alt_delim):
-    global delimiter
     return alt_delim if delimiter is None else delimiter
 
 def fill(string, width_adjustment=0, **kwargs):
@@ -138,6 +135,8 @@ def pager(content, pager=None, file=None):
         pager_process.stdin.write(content.encode(sys_encoding))
         pager_process.stdin.close()
         pager_process.wait()
+        if pager_process.returncode != os.EX_OK:
+            raise DXCLIError() # Pager had a problem, print the content without it
     except:
         file.write(content.encode(sys_encoding) if USING_PYTHON2 else content)
     finally:
@@ -145,3 +144,14 @@ def pager(content, pager=None, file=None):
             pager_process.terminate()
         except:
             pass
+
+def refill_paragraphs(string, ignored_prefix='    '):
+    """Refills the given text, where the text is composed of paragraphs
+    separated by blank lines (i.e. '\n\n'). Lines that begin with
+    ignored_prefix are not touched; this can be used to keep indented
+    code snippets from being incorrectly reformatted.
+
+    """
+    paragraphs = string.split('\n\n')
+    refilled_paragraphs = [fill(paragraph) if not paragraph.startswith(ignored_prefix) else paragraph for paragraph in paragraphs]
+    return '\n\n'.join(refilled_paragraphs).strip('\n')

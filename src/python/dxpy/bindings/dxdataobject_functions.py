@@ -41,10 +41,16 @@ def dxlink(object_id, project_id=None):
     :type project_id: string
 
     Creates a DXLink (a dict formatted as a symbolic DNAnexus object
-    reference) to the specified object.
+    reference) to the specified object.  Returns *object_id* if it
+    appears to be a DXLink already.
     '''
     if isinstance(object_id, DXDataObject):
         object_id = object_id.get_id()
+    if isinstance(object_id, dict):
+        if '$dnanexus_link' in object_id:
+            # In this case, dxlink was called on something that
+            # already looks like a link
+            return object_id
     if project_id is None:
         return {'$dnanexus_link': object_id}
     else:
@@ -57,7 +63,17 @@ def is_dxlink(x):
     Returns whether *x* appears to be a DNAnexus link (is a dict with
     key ``"$dnanexus_link"``) with a referenced data object.
     '''
-    return isinstance(x, dict) and '$dnanexus_link' in x and (isinstance(x['$dnanexus_link'], basestring) or isinstance(x['$dnanexus_link'], dict) and 'id' in x['$dnanexus_link'])
+    if not isinstance(x, dict):
+        return False
+    if '$dnanexus_link' not in x:
+        return False
+    link = x['$dnanexus_link']
+    if isinstance(link, basestring):
+        return True
+    elif isinstance(link, dict):
+        return ('id' in link or 'job' in link)
+    else:
+        return False
 
 def get_dxlink_ids(link):
     '''
@@ -107,7 +123,20 @@ def get_handler(id_or_link, project=None):
     except Exception as e:
         raise DXError("Could not parse link {}: {}".format(id_or_link, e))
 
-    if project is None or cls in [dxpy.DXJob, dxpy.DXAnalysis, dxpy.DXProject, dxpy.DXContainer]:
+    if cls == dxpy.DXApp:
+        # This special case should translate identifiers of the form
+        # "app-name" or "app-name/version_or_tag" to the appropriate
+        # arguments
+        if dxpy.utils.resolver.is_hashid(id_or_link):
+            return cls(id_or_link)
+        else:
+            slash_pos = id_or_link.find('/')
+            if slash_pos == -1:
+                return cls(name=id_or_link[4:])
+            else:
+                return cls(name=id_or_link[4:slash_pos],
+                           alias=id_or_link[slash_pos + 1:])
+    elif project is None or cls in [dxpy.DXJob, dxpy.DXAnalysis, dxpy.DXProject, dxpy.DXContainer]:
         # This case is important for the handlers which do not
         # take a project field
         return cls(id_or_link)

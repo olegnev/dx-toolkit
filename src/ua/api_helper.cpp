@@ -97,13 +97,13 @@ void checkForUpdates() {
     return;
   }
 
-  if (res["update"]["available"] == false) {
+  if (res["update"]["available"].get<bool>() == false) {
     DXLOG(logINFO) << " Hurray! Your copy of Upload Agent is up to date.";
     return;
   }
   string ver = res["update"]["version"].get<string>();
   string url = res["update"]["url"].get<string>();
-  if (res["update"]["level"] == "required") {
+  if (res["update"]["level"].get<string>() == "required") {
     throw runtime_error(string("**********\nUpload Agent being used is too old to continue.") +
                         "\nPlease download latest version (v" + ver + ") from " + url + "\n**********");
   }
@@ -191,7 +191,7 @@ string resolveProject(const string &projectSpec) {
 
   if (matchingProjectIdToName.size() == 0) {
     DXLOG(logINFO) << " failure.";
-    throw runtime_error("\"" + projectSpec + "\" does not represent a valid project name or ID (with >=UPLOAD access)");
+    throw runtime_error("\"" + projectSpec + "\" does not represent a valid project name or ID (with >=UPLOAD access). Please check the project name/ID given and whether you have >= UPLOAD permission to project specified.");
   }
 
   if (matchingProjectIdToName.size() > 1) {

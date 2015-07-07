@@ -28,6 +28,41 @@ import dxpy
 from . import DXApplet, DXApp, DXWorkflow, DXProject, DXJob, DXAnalysis
 from ..exceptions import DXError, DXSearchError
 
+
+def resolve_data_objects(objects, project=None, folder=None):
+    """
+    :param objects: Data object specifications, each with fields "name"
+                    (required), "folder", and "project"
+    :type objects: list of dictionaries
+    :param project: ID of project context; a data object's project defaults
+                    to this if not specified for that object
+    :type project: string
+    :param folder: Folder path within the project; a data object's folder
+                   path defaults to this if not specified for that object
+    :type folder: string
+    :returns: List of results parallel to input objects, where each
+              entry is a list containing 0 or more dicts, each corresponding
+              to a resolved object
+    :rtype: List of lists of dictionaries
+
+    Each returned element is a list of dictionaries with keys "project" and
+    "id". The number of dictionaries for each element may be 0, 1, or more.
+    """
+    args = {}
+    if project:
+        args.update({'project': project})
+    if folder:
+        args.update({'folder': folder})
+
+    results = []
+
+    # Call API method /system/resolveDataObjects in batches of 1000
+    for i in range(0, len(objects), 1000):
+        args.update({'objects': objects[i:(i+1000)]})
+        results.extend(dxpy.api.system_resolve_data_objects(args)['results'])
+    return results
+
+
 def _find(api_method, query, limit, return_handler, first_page_size, **kwargs):
     ''' Takes an API method handler (dxpy.api.find...) and calls it with *query*, then wraps a generator around its
     output. Used by the methods below.
@@ -73,7 +108,9 @@ def find_data_objects(classname=None, state=None, visibility=None,
                       return_handler=False, first_page_size=100,
                       **kwargs):
     """
-    :param classname: Class with which to restrict the search, i.e. one of "record", "file", "gtable", "table", "applet", "workflow"
+    :param classname:
+        Class with which to restrict the search, i.e. one of "record",
+        "file", "gtable", "applet", "workflow"
     :type classname: string
     :param state: State of the object ("open", "closing", "closed", "any")
     :type state: string
@@ -129,9 +166,9 @@ def find_data_objects(classname=None, state=None, visibility=None,
        * A nonnegative integer, interpreted as milliseconds since the Epoch
        * A negative integer, interpreted as an offset in milliseconds relative
          to the current time
-       * A string with one of the suffixes "s", "m", "d", "w", or "y" (for
-         seconds, minutes, days, weeks, or years), interpreted as an offset
-         from the current time.
+       * A string containing a negative integer with one of the suffixes
+         "s", "m", "d", "w", or "y" (for seconds, minutes, days, weeks,
+         or years), interpreted as an offset from the current time.
 
        The following examples both find all items that were created more
        than 1 week ago::
@@ -540,44 +577,62 @@ def _find_one(method, zero_ok=False, more_ok=True, **kwargs):
             raise DXSearchError("Expected one result, but found none: "+str(kwargs))
     return result
 
+
 def find_one_data_object(zero_ok=False, more_ok=True, **kwargs):
     """
-    :param zero_ok: Specifies whether to raise an error or return None on 0 results for the search
-    :type zero_ok: boolean
-    :param more_ok: Specifies whether to raise an error on 2+ results for the search
-    :type more_ok: boolean
-    
-    Returns one data object that satisfies the supplied constraints. Supports all search constraint arguments supported
-    by :meth:`find_data_objects()`. If *zero_ok* is set to False (default), returns None if there are no results,
-    otherwise raises :class:`~dxpy.exceptions.DXSearchError`. If *more_ok* is set to False and more than one result is
-    returned for the search, also raises :class:`~dxpy.exceptions.DXSearchError`.
+    :param zero_ok:
+        If False (default), :class:`~dxpy.exceptions.DXSearchError` is
+        raised if the search has 0 results; if True, returns None if the
+        search has 0 results
+    :type zero_ok: bool
+    :param more_ok:
+        If False, :class:`~dxpy.exceptions.DXSearchError` is raised if
+        the search has 2 or more results
+    :type more_ok: bool
+
+    Returns one data object that satisfies the supplied constraints, or
+    None if none exist (provided *zero_ok* is True). Supports all search
+    constraint arguments supported by :meth:`find_data_objects()`.
+
     """
     return _find_one(find_data_objects, zero_ok=zero_ok, more_ok=more_ok, **kwargs)
 
+
 def find_one_project(zero_ok=False, more_ok=True, **kwargs):
     """
-    :param zero_ok: Specifies whether to raise an error or return None on 0 results for the search
-    :type zero_ok: boolean
-    :param more_ok: Specifies whether to raise an error on 2+ results for the search
-    :type more_ok: boolean
-    
-    Returns one project that satisfies the supplied constraints. Supports all search constraint arguments supported
-    by :meth:`find_projects()`. If *zero_ok* is set to False (default), returns None if there are no results,
-    otherwise raises :class:`~dxpy.exceptions.DXSearchError`. If *more_ok* is set to False and more than one result is
-    returned for the search, also raises :class:`~dxpy.exceptions.DXSearchError`.
+    :param zero_ok:
+        If False (default), :class:`~dxpy.exceptions.DXSearchError` is
+        raised if the search has 0 results; if True, returns None if the
+        search has 0 results
+    :type zero_ok: bool
+    :param more_ok:
+        If False, :class:`~dxpy.exceptions.DXSearchError` is raised if
+        the search has 2 or more results
+    :type more_ok: bool
+
+    Returns one project that satisfies the supplied constraints, or None
+    if none exist (provided *zero_ok* is True). Supports all search
+    constraint arguments supported by :meth:`find_projects()`.
+
     """
     return _find_one(find_projects, zero_ok=zero_ok, more_ok=more_ok, **kwargs)
 
+
 def find_one_app(zero_ok=False, more_ok=True, **kwargs):
     """
-    :param zero_ok: Specifies whether to raise an error or return None on 0 results for the search
-    :type zero_ok: boolean
-    :param more_ok: Specifies whether to raise an error on 2+ results for the search
-    :type more_ok: boolean
-    
-    Returns one app that satisfies the supplied constraints. Supports all search constraint arguments supported
-    by :meth:`find_apps()`. If *zero_ok* is set to False (default), returns None if there are no results,
-    otherwise raises :class:`~dxpy.exceptions.DXSearchError`. If *more_ok* is set to False and more than one result is
-    returned for the search, also raises :class:`~dxpy.exceptions.DXSearchError`.
+    :param zero_ok:
+        If False (default), :class:`~dxpy.exceptions.DXSearchError` is
+        raised if the search has 0 results; if True, returns None if the
+        search has 0 results
+    :type zero_ok: bool
+    :param more_ok:
+        If False, :class:`~dxpy.exceptions.DXSearchError` is raised if
+        the search has 2 or more results
+    :type more_ok: bool
+
+    Returns one app that satisfies the supplied constraints, or None if
+    none exist (provided *zero_ok* is True). Supports all search
+    constraint arguments supported by :meth:`find_apps()`.
+
     """
     return _find_one(find_apps, zero_ok=zero_ok, more_ok=more_ok, **kwargs)

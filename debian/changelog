@@ -1,3 +1,419 @@
+dx-toolkit (0.152.0) precise; urgency=low
+
+  * Java bindings support for dataobj describe "fields" API
+
+ -- Phil Sung <psung@dnanexus.com>  Wed, 01 Jul 2015 20:37:53 +0000
+
+dx-toolkit (0.151.0) precise; urgency=low
+
+  * updated readme
+
+  * d10b98e broke callers that supply args positionally
+
+  * verify file expects files to be closed
+
+  * PTFM-15103 Add Python bindings for dataobject describe fields API
+
+  * wait_on_done methods only request the field they need ('state')
+
+  * PTFM-14807 Add org API wrappers
+
+  * Do not display "Default bill to" when user describing other
+
+  * Use upload API V2
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 24 Jun 2015 20:03:02 +0000
+
+dx-toolkit (0.150.0) precise; urgency=low
+
+  * Bug fix for dxfs
+
+  * dxpy.is_dxlink returns true on JBOR dxlink
+
+ -- Phil Sung <psung@dnanexus.com>  Wed, 17 Jun 2015 17:10:47 +0000
+
+dx-toolkit (0.149.0) precise; urgency=low
+
+  * Adding several configuration options which should prevent uploads from getting stuck
+
+  * PTFM-15394 Resource upload does not follow symlinks, can specify to upload without checksumming
+
+  * PTFM-14794 Optional file arguments
+
+  * don't redownload boost
+
+  * PTFM-15358 Adding dxfs to user-agent
+
+  * Remove dxpy timeout test
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 10 Jun 2015 21:59:43 +0000
+
+dx-toolkit (0.148.0) precise; urgency=low
+
+  * Improve dxpy socket timeout logic
+
+  * Add "dx run --depends-on"
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 03 Jun 2015 21:18:22 +0000
+
+dx-toolkit (0.147.0) precise; urgency=low
+
+  * Fix corruption of small DXFile reads within a job
+
+  * Revert "Fix corruption of small DXFile reads within a job"
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 26 May 2015 21:20:44 +0000
+
+dx-toolkit (0.146.0) precise; urgency=low
+
+  * Improved reliability for "dx rm"
+
+  * Lower default timeout value for file requests
+
+ -- Phil Sung <psung@dnanexus.com>  Wed, 20 May 2015 22:26:42 +0000
+
+dx-toolkit (0.145.0) precise; urgency=low
+
+  * PTFM-14962 Use devtools to install versioned CRAN execDepends
+
+  * PTFM-14493 Fixing integration tests for restrictions on adding PUBLIC to auth users
+
+  * PTFM-14493 Remove support for PUBLIC apps
+
+  * Check that all chunks are marked as complete before closing an uploaded file
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 13 May 2015 17:27:42 +0000
+
+dx-toolkit (0.144.0) precise; urgency=low
+
+  * Bug fix for session configuration loading due to Mac metadata files
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 06 May 2015 20:32:58 +0000
+
+dx-toolkit (0.143.0) precise; urgency=low
+
+  * Bug fixes
+
+ -- Phil Sung <psung@dnanexus.com>  Wed, 29 Apr 2015 19:24:16 +0000
+
+dx-toolkit (0.142.0) precise; urgency=low
+
+  * Minor fixes
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 22 Apr 2015 20:05:04 +0000
+
+dx-toolkit (0.141.0) precise; urgency=low
+
+  * Support for mem1_ssd2_* instances
+
+  * Allow fifos in dx-upload-all-outputs
+
+  * Prevent expiry of download URLs in "dx cat"
+
+  * Reuse bundled depends if contents have not changed
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 15 Apr 2015 18:38:34 +0000
+
+dx-toolkit (0.140.0) precise; urgency=low
+
+  * Minor fixes
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 08 Apr 2015 17:05:49 +0000
+
+dx-toolkit (0.139.0) precise; urgency=low
+
+  * Minor fixes
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 31 Mar 2015 23:24:28 +0000
+
+dx-toolkit (0.138.0) precise; urgency=low
+
+  * minor fixes
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 25 Mar 2015 20:00:40 +0000
+
+dx-toolkit (0.137.0) precise; urgency=low
+
+  * Bug fixes
+
+ -- Kaveh Nafissi <knafissi@dnanexus.com>  Wed, 18 Mar 2015 20:31:08 +0000
+
+dx-toolkit (0.136.0) precise; urgency=low
+
+  * Bug fixes
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 10 Mar 2015 21:48:40 +0000
+
+dx-toolkit (0.135.0) precise; urgency=low
+
+  * Fix regression in DXFile buffer size selection
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 04 Mar 2015 23:38:09 +0000
+
+dx-toolkit (0.134.0) precise; urgency=low
+
+  *  Minor optimizations
+
+ -- Ric Medlinger <ric@dnanexus.com>  Tue, 24 Feb 2015 23:47:09 +0000
+
+dx-toolkit (0.133.0) precise; urgency=low
+
+  * Improved config management in dxpy
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 18 Feb 2015 22:27:23 +0000
+
+dx-toolkit (0.132.0) precise; urgency=low
+
+  * dx-upload-all-outputs waits for files to close
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 11 Feb 2015 15:43:51 +0000
+
+dx-toolkit (0.131.0) precise; urgency=low
+
+  * Ensure ua uses bundled libc++ dylibs
+
+  * Various bug fixes
+
+ -- Ric Medlinger <ric@dnanexus.com>  Thu, 05 Feb 2015 15:57:23 +0000
+
+dx-toolkit (0.130.0) precise; urgency=low
+
+  * dx new record --close
+
+  * Fix possible boost issue on clang builds
+
+ -- Ric Medlinger <ric@dnanexus.com>  Tue, 13 Jan 2015 22:06:19 +0000
+
+dx-toolkit (0.129.0) precise; urgency=low
+
+  * Support building SDK and UA with clang
+
+  * Bump setuptools and friends to fix installation issues
+
+  * Retry ConnectionErrors even for non-idempotent requests
+
+  * Various bug fixes
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 07 Jan 2015 15:58:16 +0000
+
+dx-toolkit (0.128.0) precise; urgency=low
+
+  * Improvements to session cleanup
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 16 Dec 2014 23:14:55 +0000
+
+dx-toolkit (0.127.0) precise; urgency=low
+
+  * Remove import-time side effects from describing job
+
+  * Cease building R packages for Debian
+
+  * Various bug fixes
+
+ -- Ric Medlinger <ric@dnanexus.com>  Tue, 09 Dec 2014 22:01:46 +0000
+
+dx-toolkit (0.126.0) precise; urgency=low
+
+  * General improvements to error and keyboard interrupt handling
+
+  * Mac build fixes
+
+  * Move execution dependency installation code into client distribution
+
+  * Java: compound type queries for finding data objects
+
+  * Various bug fixes
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 03 Dec 2014 21:10:59 +0000
+
+dx-toolkit (0.125.0) precise; urgency=low
+
+  * Upgrade dependencies
+
+  * Expand bash path variables
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 19 Nov 2014 17:50:37 +0000
+
+dx-toolkit (0.124.0) precise; urgency=low
+
+  * Improvements to bash prefix variables
+
+ -- Phil Sung <psung@dnanexus.com>  Wed, 12 Nov 2014 18:43:07 +0000
+
+dx-toolkit (0.123.0) precise; urgency=low
+
+  * adding bash helper variables
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 05 Nov 2014 20:22:15 +0000
+
+dx-toolkit (0.122.0) precise; urgency=low
+
+  * minor bug fixes and clean up
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 29 Oct 2014 19:10:51 +0000
+
+dx-toolkit (0.121.0) precise; urgency=low
+
+  * "dx download JOB:FIELD"
+
+  * New --path flag to "dx find data" replaces --project and --folder
+
+  * dx-upload-all copies subdirectory structure into output
+
+ -- Phil Sung <psung@dnanexus.com>  Wed, 22 Oct 2014 22:38:17 +0000
+
+dx-toolkit (0.120.0) precise; urgency=low
+
+  * New flag dx set_details -f
+
+ -- Ric Medlinger <ric@dnanexus.com>  Tue, 14 Oct 2014 18:09:19 +0000
+
+dx-toolkit (0.119.0) precise; urgency=low
+
+  * First file download request blocks all subsequent request
+
+ -- Ric Medlinger <ric@dnanexus.com>  Tue, 07 Oct 2014 21:44:06 +0000
+
+dx-toolkit (0.118.0) precise; urgency=low
+
+  * Build and packaging improvements
+
+  * Add bindings to project-xxxx/updateSponsorship method
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 30 Sep 2014 20:10:49 +0000
+
+dx-toolkit (0.117.0) precise; urgency=low
+
+  * Various improvements to "dx download" semantics
+
+  * Support Ubuntu build against openjdk 7
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 23 Sep 2014 23:24:14 +0000
+
+dx-toolkit (0.116.0) precise; urgency=low
+
+  * Fixes for packaging on CentOS
+
+  * Misc Bugs Fixes
+
+ -- Ric Medlinger <ric@dnanexus.com>  Wed, 17 Sep 2014 20:33:20 +0000
+
+dx-toolkit (0.115.0) precise; urgency=low
+
+  * Add spelling suggestions for first-level dx subcommands
+
+  * Make dx upgrade resilient to absence of curl
+
+  * Various bug fixes and improvements
+
+ -- Katherine Lai <klai@dnanexus.com>  Tue, 09 Sep 2014 19:06:54 +0000
+
+dx-toolkit (0.114.0) precise; urgency=low
+
+  * Fix password prompting on Windows
+
+  * New --except option for dx-{upload,download}-* scripts
+
+  * Various bug fixes
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 02 Sep 2014 20:46:02 +0000
+
+dx-toolkit (0.113.0) precise; urgency=low
+
+  * Usability improvements for dx run --debug-on
+
+ -- Katherine Lai <klai@dnanexus.com>  Tue, 26 Aug 2014 19:58:40 +0000
+
+dx-toolkit (0.112.0) precise; urgency=low
+
+  * Stability improvements for "dx ssh"
+
+  * Debug features are compatible with latest apiserver
+
+  * Various bug fixes and stability improvements
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 19 Aug 2014 18:35:06 +0000
+
+dx-toolkit (0.111.0) precise; urgency=low
+
+  * Bug fix for dxpy file upload.
+
+ -- Katherine Lai <klai@dnanexus.com>  Tue, 12 Aug 2014 18:54:36 +0000
+
+dx-toolkit (0.110.0) precise; urgency=low
+
+  * Improvements to HTTP retry logic.
+
+ -- Phil Sung <psung@dnanexus.com>  Wed, 06 Aug 2014 08:10:06 +0000
+
+dx-toolkit (0.109.0) precise; urgency=low
+
+  * dx login usability improvements.
+
+  * Fixes for 503 behavior in Python and Java clients.
+
+  * dx whoami now relies on API server instead of authserver.
+
+  * Various other improvements.
+
+ -- Katherine Lai <klai@dnanexus.com>  Tue, 29 Jul 2014 21:10:39 +0000
+
+dx-toolkit (0.108.0) precise; urgency=low
+
+  * Minor improvements and bug fixes.
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 22 Jul 2014 19:58:55 +0000
+
+dx-toolkit (0.107.0) precise; urgency=low
+
+  * New experimental tools added: dx-download-all-inputs, dx-upload-all-outputs for bash apps.
+
+  * Adjustment to Retry-After logic in dxpy.
+
+  * Build and test fixes and improvements.
+
+ -- Katherine Lai <klai@dnanexus.com>  Tue, 15 Jul 2014 21:53:56 +0000
+
+dx-toolkit (0.106.0) precise; urgency=low
+
+  * Improvements to clang/OSX builds and documentation.
+
+  * Fixes for Java bindings retry logic.
+
+  * Fix completion of local paths.
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 08 Jul 2014 21:53:59 +0000
+
+dx-toolkit (0.105.0) precise; urgency=low
+
+  * dx ssh improvements and tests.
+
+ -- Katherine Lai <klai@dnanexus.com>  Tue, 01 Jul 2014 21:09:03 +0000
+
+dx-toolkit (0.104.0) precise; urgency=low
+
+  * dx ssh improvements.
+
+  * dx build --remote --run works, and other minor dx build improvements.
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 24 Jun 2014 18:25:05 +0000
+
+dx-toolkit (0.103.0) precise; urgency=low
+
+  * Support for dx ssh.
+
+  * Various build and packaging improvements.
+
+ -- Katherine Lai <klai@dnanexus.com>  Tue, 17 Jun 2014 18:15:20 +0000
+
+dx-toolkit (0.102.0) precise; urgency=low
+
+  * Support Retry-After in dxcpp.
+
+  * Various bug fixes.
+
+ -- Phil Sung <psung@dnanexus.com>  Tue, 10 Jun 2014 21:34:45 +0000
+
 dx-toolkit (0.101.0) precise; urgency=low
 
   * More uniform client retry logic and support for Retry-After.
@@ -182,7 +598,7 @@ dx-toolkit (0.82.0) precise; urgency=low
 dx-toolkit (0.81.0) precise; urgency=low
 
   * DXWorkflow supports stage_instance_types parameter; other workflow
-	improvements.
+    improvements.
 
   * Various bug fixes.
 

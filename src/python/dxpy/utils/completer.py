@@ -334,19 +334,9 @@ class LocalCompleter():
         self.matches = []
 
     def _populate_matches(self, prefix):
-        import subprocess, shlex
-
-        lexer = shlex.shlex(prefix, posix=True)
-        tomatch = lexer.get_token()
-        tomatch = '' if tomatch is None else tomatch
-        file_completions = subprocess.Popen('bash -c "compgen -f -o filenames -- \'' + tomatch + '\'"',
-                                            shell=True,
-                                            stdout=subprocess.PIPE).stdout.read().splitlines()
-        self.matches = subprocess.Popen('bash -c "compgen -d -o filenames -S / -- \'' + tomatch + '\'"',
-                                        shell=True,
-                                        stdout=subprocess.PIPE).stdout.read().splitlines()
-        self.matches = [match.replace(" ", "\ ") for match in self.matches if match != '']
-        self.matches += [(completion.replace(" ", "\ ") + " ") for completion in file_completions if (completion != '' and completion + "/" not in self.matches)]
+        from argcomplete.completers import FilesCompleter
+        completer = FilesCompleter()
+        self.matches = completer(prefix)
 
     def get_matches(self, line, point, prefix, suffix):
         self._populate_matches(prefix)
@@ -357,7 +347,7 @@ class LocalCompleter():
             self._populate_matches(text)
 
         if state < len(self.matches):
-            return self.matches[state].replace(' ', '\ ')
+            return self.matches[state]
         else:
             return None
 
@@ -450,6 +440,12 @@ class InstanceTypesCompleter():
               InstanceTypeSpec('mem3_ssd1_x8', 61.0, 160, 8),
               InstanceTypeSpec('mem3_ssd1_x16', 122.0, 320, 16),
               InstanceTypeSpec('mem3_ssd1_x32', 244.0, 640, 32),
+
+              InstanceTypeSpec('mem1_ssd2_x2', 3.8, 160, 2),
+              InstanceTypeSpec('mem1_ssd2_x4', 7.5, 320, 4),
+              InstanceTypeSpec('mem1_ssd2_x8', 15, 640, 8),
+              InstanceTypeSpec('mem1_ssd2_x16', 30, 1280, 16),
+              InstanceTypeSpec('mem1_ssd2_x36', 60, 2880, 36),
 
               InstanceTypeSpec('mem3_hdd2_x2', 17.1, 420, 2),
               InstanceTypeSpec('mem3_hdd2_x4', 34.2, 850, 4),

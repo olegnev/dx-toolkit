@@ -362,7 +362,7 @@ public abstract class DXDataObject extends DXObject {
         @JsonProperty
         private DataObjectState state;
         @JsonProperty
-        private boolean hidden;
+        private Boolean hidden;
         @JsonProperty
         private String name;
         @JsonProperty
@@ -374,9 +374,9 @@ public abstract class DXDataObject extends DXObject {
         @JsonProperty
         private Map<String, String> properties;
         @JsonProperty
-        private long created;
+        private Long created;
         @JsonProperty
-        private long modified;
+        private Long modified;
 
         /**
          * Creates a {@code Describe} object with all empty metadata.
@@ -391,6 +391,9 @@ public abstract class DXDataObject extends DXObject {
          * @return creation date
          */
         public Date getCreationDate() {
+            Preconditions
+                    .checkState(this.created != null,
+                            "creation time is not accessible because it was not retrieved with the describe call");
             return new Date(this.created);
         }
 
@@ -407,10 +410,9 @@ public abstract class DXDataObject extends DXObject {
          * @throws IllegalStateException if details were not retrieved with the describe call
          */
         public <T> T getDetails(Class<T> valueType) {
-            if (this.details == null) {
-                throw new IllegalStateException(
-                        "details are not accessible because they were not retrieved with the describe call");
-            }
+            Preconditions
+                    .checkState(this.details != null,
+                            "details are not accessible because they were not retrieved with the describe call");
             return DXJSON.safeTreeToValue(this.details, valueType);
         }
 
@@ -420,6 +422,8 @@ public abstract class DXDataObject extends DXObject {
          * @return full path to the containing folder (a String starting with {@code "/"})
          */
         public String getFolder() {
+            Preconditions.checkState(this.folder != null,
+                    "folder is not accessible because it was not retrieved with the describe call");
             return this.folder;
         }
 
@@ -429,6 +433,9 @@ public abstract class DXDataObject extends DXObject {
          * @return modification date
          */
         public Date getModificationDate() {
+            Preconditions
+                    .checkState(this.modified != null,
+                            "modification time is not accessible because it was not retrieved with the describe call");
             return new Date(this.modified);
         }
 
@@ -438,6 +445,8 @@ public abstract class DXDataObject extends DXObject {
          * @return the object's name
          */
         public String getName() {
+            Preconditions.checkState(this.name != null,
+                    "name is not accessible because it was not retrieved with the describe call");
             return this.name;
         }
 
@@ -447,6 +456,9 @@ public abstract class DXDataObject extends DXObject {
          * @return {@code DXProject} or {@code DXContainer}
          */
         public DXContainer getProject() {
+            Preconditions
+                    .checkState(this.project != null,
+                            "project is not accessible because it was not retrieved with the describe call");
             return DXContainer.getInstance(this.project);
         }
 
@@ -461,10 +473,9 @@ public abstract class DXDataObject extends DXObject {
          * @throws IllegalStateException if properties were not retrieved with the describe call
          */
         public Map<String, String> getProperties() {
-            if (this.properties == null) {
-                throw new IllegalStateException(
-                        "properties are not accessible because they were not retrieved with the describe call");
-            }
+            Preconditions
+                    .checkState(this.properties != null,
+                            "properties is not accessible because it was not retrieved with the describe call");
             return ImmutableMap.copyOf(this.properties);
         }
 
@@ -474,6 +485,8 @@ public abstract class DXDataObject extends DXObject {
          * @return a {@code DXObjectState} indicating the current state
          */
         public DataObjectState getState() {
+            Preconditions.checkState(this.state != null,
+                    "state is not accessible because it was not retrieved with the describe call");
             return this.state;
         }
 
@@ -483,6 +496,8 @@ public abstract class DXDataObject extends DXObject {
          * @return List of tags
          */
         public List<String> getTags() {
+            Preconditions.checkState(this.tags != null,
+                    "tags is not accessible because it was not retrieved with the describe call");
             // TODO: here and elsewhere, avoid creating this ImmutableList multiple times if the
             // client requests it multiple times.
             return ImmutableList.copyOf(this.tags);
@@ -494,6 +509,8 @@ public abstract class DXDataObject extends DXObject {
          * @return List of types
          */
         public List<String> getTypes() {
+            Preconditions.checkState(this.types != null,
+                    "types is not accessible because it was not retrieved with the describe call");
             return ImmutableList.copyOf(this.types);
         }
 
@@ -503,6 +520,9 @@ public abstract class DXDataObject extends DXObject {
          * @return true if the object is visible
          */
         public boolean isVisible() {
+            Preconditions
+                    .checkState(this.hidden != null,
+                            "visibility is not accessible because it was not retrieved with the describe call");
             return !this.hidden;
         }
 
@@ -538,16 +558,18 @@ public abstract class DXDataObject extends DXObject {
         private final String projectId;
         @JsonProperty
         private final Boolean properties;
-
         @JsonProperty
         private final Boolean details;
+        @JsonProperty
+        private final Map<String, Boolean> fields;
 
         private DescribeOptions() {
-            this(null, null, null);
+            this(null, null, null, null);
         }
 
-        private DescribeOptions(String projectId, Boolean properties, Boolean details) {
+        private DescribeOptions(String projectId, Map<String, Boolean> fields, Boolean properties, Boolean details) {
             this.projectId = projectId;
+            this.fields = fields;
             this.properties = properties;
             this.details = details;
         }
@@ -555,13 +577,49 @@ public abstract class DXDataObject extends DXObject {
         /**
          * Returns a {@code DescribeOptions} that behaves like the current one, except that
          * project-specific metadata will be retrieved from the specified project or container.
+         * Attempts to invoke accessors on the resulting {@link Describe} object corresponding to
+         * fields that were not requested will throw {@link IllegalStateException}.
          *
          * @param project project or container from which to obtain project-specific metadata
          *
          * @return a new {@code DescribeOptions} object
          */
         public DescribeOptions inProject(DXContainer project) {
-            return new DescribeOptions(project.getId(), this.properties, this.details);
+            return new DescribeOptions(project.getId(), this.fields, this.properties, this.details);
+        }
+
+        /**
+         * Returns a {@code DescribeOptions} that behaves like the current one, except that only the
+         * specified fields will be included in the result. Attempts to invoke accessors on the
+         * resulting {@link Describe} object corresponding to fields that were not requested will
+         * throw {@link IllegalStateException}.
+         *
+         * @param fieldNamesToInclude API fields to be included
+         *
+         * @return a new {@code DescribeOptions} object
+         */
+        public DescribeOptions withCustomFields(String... fieldNamesToInclude) {
+            return this.withCustomFields(Lists.newArrayList(fieldNamesToInclude));
+        }
+
+        /**
+         * Returns a {@code DescribeOptions} that behaves like the current one, except that only the
+         * fields in the specified collection will be included in the result.
+         *
+         * @param fieldNamesToInclude collection of API fields to be included
+         *
+         * @return a new {@code DescribeOptions} object
+         */
+        public DescribeOptions withCustomFields(Collection<? extends String> fieldNamesToInclude) {
+            Preconditions.checkNotNull(fieldNamesToInclude);
+            Preconditions.checkState(this.properties == null,
+                    "withProperties may not be used with fieldNamesToInclude");
+            Preconditions.checkState(this.details == null, "withDetails may not be used with fieldNamesToInclude");
+            ImmutableMap.Builder<String, Boolean> fieldMap = ImmutableMap.builder();
+            for (String fieldNameToInclude : fieldNamesToInclude) {
+                fieldMap.put(fieldNameToInclude, true);
+            }
+            return new DescribeOptions(this.projectId, fieldMap.build(), false, false);
         }
 
         /**
@@ -571,7 +629,7 @@ public abstract class DXDataObject extends DXObject {
          * @return a new {@code DescribeOptions} object
          */
         public DescribeOptions withDetails() {
-            return new DescribeOptions(this.projectId, this.properties, true);
+            return new DescribeOptions(this.projectId, null, this.properties, true);
         }
 
         /**
@@ -581,7 +639,7 @@ public abstract class DXDataObject extends DXObject {
          * @return a new {@code DescribeOptions} object
          */
         public DescribeOptions withProperties() {
-            return new DescribeOptions(this.projectId, true, this.details);
+            return new DescribeOptions(this.projectId, null, true, this.details);
         }
     }
 
@@ -897,7 +955,16 @@ public abstract class DXDataObject extends DXObject {
     public DXDataObject closeAndWait() {
         DXDataObject obj = this.close();
         // TODO: allow supplying a timeout
-        while (this.describe().getState() != DataObjectState.CLOSED) {
+        while (true) {
+            DataObjectState currentState = this.describe(
+                    DescribeOptions.get().withCustomFields(ImmutableList.of("state"))).getState();
+            if (currentState == DataObjectState.CLOSED) {
+                return obj;
+            }
+            if (currentState == DataObjectState.ABANDONED) {
+                throw new IllegalStateException("data object " + this.getId()
+                        + " has been abandoned");
+            }
             // TODO: some kind of exponential backoff so short requests don't
             // take 2000ms to complete
             try {
@@ -906,7 +973,6 @@ public abstract class DXDataObject extends DXObject {
                 throw new RuntimeException(e);
             }
         }
-        return obj;
     }
 
     /**

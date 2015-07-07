@@ -356,7 +356,7 @@ module DX
     #
     # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Folders-and-Deletion#API-method%3A-%2Fclass-xxxx%2FremoveFolder
     def self.container_remove_folder(object_id, input_params={}, opts={})
-      opts = { "always_retry" => true }.merge(opts)
+      opts = { "always_retry" => false }.merge(opts)
       return DX::http_request("/#{object_id}/removeFolder", input_params, opts)
     end
 
@@ -364,7 +364,7 @@ module DX
     #
     # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Folders-and-Deletion#API-method%3A-%2Fclass-xxxx%2FremoveObjects
     def self.container_remove_objects(object_id, input_params={}, opts={})
-      opts = { "always_retry" => true }.merge(opts)
+      opts = { "always_retry" => false }.merge(opts)
       return DX::http_request("/#{object_id}/removeObjects", input_params, opts)
     end
 
@@ -692,6 +692,62 @@ module DX
       return DX::http_request("/notifications/markRead", input_params, opts)
     end
 
+    # Invokes the /org-xxxx/describe API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2Fdescribe
+    def self.org_describe(object_id, input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/#{object_id}/describe", input_params, opts)
+    end
+
+    # Invokes the /org-xxxx/findProjects API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2FfindProjects
+    def self.org_find_projects(object_id, input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/#{object_id}/findProjects", input_params, opts)
+    end
+
+    # Invokes the /org-xxxx/getMemberAccess API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2FgetMemberAccess
+    def self.org_get_member_access(object_id, input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/#{object_id}/getMemberAccess", input_params, opts)
+    end
+
+    # Invokes the /org-xxxx/invite API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2Finvite
+    def self.org_invite(object_id, input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/#{object_id}/invite", input_params, opts)
+    end
+
+    # Invokes the /org-xxxx/setMemberAccess API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2FsetMemberAccess
+    def self.org_set_member_access(object_id, input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/#{object_id}/setMemberAccess", input_params, opts)
+    end
+
+    # Invokes the /org-xxxx/update API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2Fupdate
+    def self.org_update(object_id, input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/#{object_id}/update", input_params, opts)
+    end
+
+    # Invokes the /org/new API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg%2Fnew
+    def self.org_new(input_params={}, opts={})
+      opts = { "always_retry" => false }.merge(opts)
+      return DX::http_request("/org/new", input_params, opts)
+    end
+
     # Invokes the /project-xxxx/addTags API method.
     #
     # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FaddTags
@@ -776,7 +832,7 @@ module DX
     #
     # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Folders-and-Deletion#API-method%3A-%2Fclass-xxxx%2FremoveFolder
     def self.project_remove_folder(object_id, input_params={}, opts={})
-      opts = { "always_retry" => true }.merge(opts)
+      opts = { "always_retry" => false }.merge(opts)
       return DX::http_request("/#{object_id}/removeFolder", input_params, opts)
     end
 
@@ -784,7 +840,7 @@ module DX
     #
     # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Folders-and-Deletion#API-method%3A-%2Fclass-xxxx%2FremoveObjects
     def self.project_remove_objects(object_id, input_params={}, opts={})
-      opts = { "always_retry" => true }.merge(opts)
+      opts = { "always_retry" => false }.merge(opts)
       return DX::http_request("/#{object_id}/removeObjects", input_params, opts)
     end
 
@@ -826,6 +882,14 @@ module DX
     def self.project_update(object_id, input_params={}, opts={})
       opts = { "always_retry" => true }.merge(opts)
       return DX::http_request("/#{object_id}/update", input_params, opts)
+    end
+
+    # Invokes the /project-xxxx/updateSponsorship API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship
+    def self.project_update_sponsorship(object_id, input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/#{object_id}/updateSponsorship", input_params, opts)
     end
 
     # Invokes the /project/new API method.
@@ -962,6 +1026,14 @@ module DX
       return DX::http_request("/system/findDataObjects", input_params, opts)
     end
 
+    # Invokes the /system/resolveDataObjects API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/System-Methods#API-method:-/system/resolveDataObjects
+    def self.system_resolve_data_objects(input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/system/resolveDataObjects", input_params, opts)
+    end
+
     # Invokes the /system/findExecutions API method.
     #
     # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method%3A-%2Fsystem%2FfindExecutions
@@ -1010,6 +1082,14 @@ module DX
       return DX::http_request("/system/findProjectMembers", input_params, opts)
     end
 
+    # Invokes the /system/globalSearch API method.
+    #
+    # For more info, see: https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch
+    def self.system_global_search(input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/system/globalSearch", input_params, opts)
+    end
+
     # Invokes the /system/greet API method.
     def self.system_greet(input_params={}, opts={})
       opts = { "always_retry" => true }.merge(opts)
@@ -1020,6 +1100,12 @@ module DX
     def self.system_shorten_url(input_params={}, opts={})
       opts = { "always_retry" => true }.merge(opts)
       return DX::http_request("/system/shortenURL", input_params, opts)
+    end
+
+    # Invokes the /system/whoami API method.
+    def self.system_whoami(input_params={}, opts={})
+      opts = { "always_retry" => true }.merge(opts)
+      return DX::http_request("/system/whoami", input_params, opts)
     end
 
     # Invokes the /user-xxxx/describe API method.

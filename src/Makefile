@@ -93,9 +93,6 @@ cpp/dxcpp/api.h: api_wrappers/wrapper_table.json api_wrappers/generateCppAPIHWra
 cpp/dxcpp/api.cc: api_wrappers/wrapper_table.json api_wrappers/generateCppAPICCWrappers.py
 	cat api_wrappers/wrapper_table.json | api_wrappers/generateCppAPICCWrappers.py > cpp/dxcpp/api.cc
 
-javascript/DNAnexusAPI.js: api_wrappers/wrapper_table.json api_wrappers/generateJSAPIWrappers.py
-	cat api_wrappers/wrapper_table.json | api_wrappers/generateJSAPIWrappers.py > javascript/DNAnexusAPI.js
-
 perl/lib/DNAnexus/API.pm: api_wrappers/wrapper_table.json api_wrappers/generatePerlAPIWrappers.py
 	cat api_wrappers/wrapper_table.json | api_wrappers/generatePerlAPIWrappers.py > perl/lib/DNAnexus/API.pm
 
@@ -108,7 +105,7 @@ R/dxR/R/api.R: api_wrappers/wrapper_table.json api_wrappers/generateRAPIWrappers
 ruby/lib/dxruby/api.rb: api_wrappers/wrapper_table.json api_wrappers/generateRubyAPIWrappers.py
 	cat api_wrappers/wrapper_table.json | api_wrappers/generateRubyAPIWrappers.py > ruby/lib/dxruby/api.rb
 
-api_wrappers: toolkit_version python/dxpy/api.py cpp/dxcpp/api.h cpp/dxcpp/api.cc javascript/DNAnexusAPI.js perl/lib/DNAnexus/API.pm java/src/main/java/com/dnanexus/DXAPI.java R/dxR/R/api.R ruby/lib/dxruby/api.rb
+api_wrappers: toolkit_version python/dxpy/api.py cpp/dxcpp/api.h cpp/dxcpp/api.cc perl/lib/DNAnexus/API.pm java/src/main/java/com/dnanexus/DXAPI.java R/dxR/R/api.R ruby/lib/dxruby/api.rb
 
 cpp: api_wrappers
 	mkdir -p "$(DNANEXUS_HOME)/share/dnanexus/src"
@@ -117,7 +114,7 @@ cpp: api_wrappers
 src_libs: api_wrappers
 	$(eval DNANEXUS_LIBDIR := "$(DNANEXUS_HOME)/share/dnanexus/lib")
 	mkdir -p "$(DNANEXUS_LIBDIR)"
-	cp -R -v bash javascript "$(DNANEXUS_LIBDIR)"
+	cp -R -v bash "$(DNANEXUS_LIBDIR)"
 	mkdir -p "$(DNANEXUS_HOME)/lib/perl5"
 	cp -R -v perl/lib/* "$(DNANEXUS_HOME)/lib/perl5/"
 
@@ -138,13 +135,13 @@ $(DX_PY_ENV)/lib: python/requirements*.txt
 	rm -rf "$(DX_PY_ENV)"
 	virtualenv --python=python "$(DX_PY_ENV)"
 	virtualenv --relocatable "$(DX_PY_ENV)"
-	(source "$(DX_PY_ENV)/bin/activate"; pip install --upgrade --find-links="file://$(DNANEXUS_HOME)/build/wheels" --install-option="--install-lib=$(DX_PY_ENV)/lib/python2.7/site-packages" -r python/requirements_setuptools.txt)
-	(source "$(DX_PY_ENV)/bin/activate"; pip install --ignore-installed --use-wheel --find-links="file://$(DNANEXUS_HOME)/build/wheels" --install-option="--install-lib=$(DX_PY_ENV)/lib/python2.7/site-packages" -r python/requirements.txt -r python/requirements_dxfs.txt)
+	(unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; pip install --upgrade --find-links="file://$(DNANEXUS_HOME)/build/wheels" --install-option="--install-lib=$(DX_PY_ENV)/lib/python2.7/site-packages" -r python/requirements_setuptools.txt)
+	(unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; pip install --ignore-installed --use-wheel --find-links="file://$(DNANEXUS_HOME)/build/wheels" --install-option="--install-lib=$(DX_PY_ENV)/lib/python2.7/site-packages" -r python/requirements.txt -r python/requirements_dxfs.txt)
 ifeq ($(UNAME), Darwin)
-	(source "$(DX_PY_ENV)/bin/activate"; pip install --ignore-installed --use-wheel --find-links="file://$(DNANEXUS_HOME)/build/wheels" --install-option="--install-lib=$(DX_PY_ENV)/lib/python2.7/site-packages" -r python/requirements_readline.txt)
+	(unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; pip install --ignore-installed --use-wheel --find-links="file://$(DNANEXUS_HOME)/build/wheels" --install-option="--install-lib=$(DX_PY_ENV)/lib/python2.7/site-packages" -r python/requirements_readline.txt)
 endif
 ifdef DNANEXUS_INSTALL_PYTHON_TEST_DEPS
-	(source "$(DX_PY_ENV)/bin/activate"; pip install --ignore-installed --use-wheel --find-links="file://$(DNANEXUS_HOME)/build/wheels" --install-option="--install-lib=$(DX_PY_ENV)/lib/python2.7/site-packages" -r python/requirements_test.txt)
+	(unset PYTHONPATH; source "$(DX_PY_ENV)/bin/activate"; pip install --ignore-installed --use-wheel --find-links="file://$(DNANEXUS_HOME)/build/wheels" --install-option="--install-lib=$(DX_PY_ENV)/lib/python2.7/site-packages" -r python/requirements_test.txt)
 endif
 
 # We are going to install libraries to lib/python2.7 and then move them
@@ -157,9 +154,9 @@ python: api_wrappers toolkit_version python_deps
 	cp -a "$(DX_PY_ENV)/lib/python2.7/site-packages" "$(DNANEXUS_HOME)/lib/python2.7/"
 	cp -a "$(DX_PY_ENV)/bin/"*python-argcomplete* "$(DNANEXUS_HOME)/bin/"
 ifdef DNANEXUS_INSTALL_PYTHON_TEST_DEPS
-	cp -af "$(DX_PY_ENV)"/bin/coverage* "$(DNANEXUS_HOME)/bin/"
+	-cp -af "$(DX_PY_ENV)"/bin/coverage* "$(DNANEXUS_HOME)/bin/"
 endif
-	(source ../environment; export PYTHONPATH="$(DNANEXUS_HOME)/lib/python2.7/site-packages:${PYTHONPATH}"; cd python; python ./setup.py build; python ./setup.py install --install-lib="$(DNANEXUS_HOME)/lib/python2.7/site-packages" --install-scripts="$(DNANEXUS_HOME)/bin"; mv $(DNANEXUS_HOME)/lib/python2.7 $(DNANEXUS_HOME)/share/dnanexus/lib)
+	(source ../environment; source "$(DX_PY_ENV)/bin/activate"; export PYTHONPATH="$(DNANEXUS_HOME)/lib/python2.7/site-packages:${PYTHONPATH}"; cd python; python ./setup.py build; python ./setup.py install --install-lib="$(DNANEXUS_HOME)/lib/python2.7/site-packages" --install-scripts="$(DNANEXUS_HOME)/bin"; mv $(DNANEXUS_HOME)/lib/python2.7 $(DNANEXUS_HOME)/share/dnanexus/lib)
 	rm -f ../bin/easy_install* ../bin/xattr
 
 # TODO: fix up perl and java targets
@@ -330,8 +327,8 @@ build_git:
 	(cd git && autoreconf --install && ./configure && $(MAKE) && $(MAKE) install)
 	(cd ../build/bin && ln -s ../../src/git/git)
 
-OPENSSL_PV=1.0.1e
-OPENSSL_SHA=3f1b1223c9e8189bfe4e186d86449775bd903460
+OPENSSL_PV=1.0.1f
+OPENSSL_SHA=9ef09e97dfc9f14ac2c042f3b7e301098794fc0f
 openssl: shasum
 	if [[ "$(OS)" == Windows_NT || "$(UNAME)" == Darwin || "$(CENTOS_MAJOR_VERSION)" == "5" ]]; then \
 	    $(MAKE) build_openssl; \
@@ -351,16 +348,32 @@ else
 endif
 	$(MAKE) -C openssl -j1 install
 
-BOOST_PV=1.55
-BOOST_SHA=cef9a0cc7084b1d639e06cd3bc34e4251524c840
 BOOST_LIBS=filesystem,program_options,regex,system,thread,atomic,chrono,date_time,exception,iostreams,signals
+
+ifeq ($(UNAME)$(CC), Darwinclang)
+	BOOST_MAJOR=1
+	BOOST_MINOR=56
+	BOOST_PV=$(BOOST_MAJOR).$(BOOST_MINOR)
+	BOOST_URL=http://downloads.sourceforge.net/project/boost/boost/${BOOST_PV}.0/boost_${BOOST_MAJOR}_${BOOST_MINOR}_0.tar.bz2
+	BOOST_SHA=f94bb008900ed5ba1994a1072140590784b9b5df
+else
+	BOOST_PV=1.55
+	BOOST_URL=${UBUNTU_MIRROR}/pool/universe/b/boost${BOOST_PV}/boost${BOOST_PV}_${BOOST_PV}.0.orig.tar.bz2
+	BOOST_SHA=cef9a0cc7084b1d639e06cd3bc34e4251524c840
+endif
+
 boost: boost/stage
 
-# See https://svn.boost.org/trac/boost/ticket/5680 for Windows/MinGW details
-boost/stage: shasum
-	mkdir -p boost
-	curl ${UBUNTU_MIRROR}/pool/universe/b/boost${BOOST_PV}/boost${BOOST_PV}_${BOOST_PV}.0.orig.tar.bz2 > boost-$(BOOST_PV).tar.bz2
+boost-$(BOOST_PV).tar.bz2:
+	curl -L ${BOOST_URL} > boost-$(BOOST_PV).tar.bz2
+
+boost.download-shasum-checked: boost-$(BOOST_PV).tar.bz2 shasum
 	[[ $$(shasum boost-$(BOOST_PV).tar.bz2|cut -f 1 -d ' ') == $(BOOST_SHA) ]]
+	touch boost.download-shasum-checked
+
+# See https://svn.boost.org/trac/boost/ticket/5680 for Windows/MinGW details
+boost/stage: boost.download-shasum-checked
+	mkdir -p boost
 	tar -xjf boost-$(BOOST_PV).tar.bz2 -C boost --strip-components=1
 ifeq ($(OS), Windows_NT)
 	cd boost; ./bootstrap.sh --with-toolset=mingw --with-libraries=${BOOST_LIBS}
@@ -369,6 +382,9 @@ ifeq ($(OS), Windows_NT)
 else ifeq ($(CENTOS_MAJOR_VERSION), 5)
 	echo 'using gcc : 4.4 : g++44 ;' >> boost/tools/build/v2/user-config.jam
 	$(MAKE) boost_build
+else ifeq ($(UNAME)$(CC), Darwinclang)
+	cd boost; ./bootstrap.sh --with-libraries=${BOOST_LIBS} --with-toolset=clang
+	cd boost; ./b2 --layout=tagged -j8 stage cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" toolset=clang
 else
 	$(MAKE) boost_build
 endif
@@ -379,8 +395,8 @@ boost_build:
 
 curl: c-ares/stage/lib/libcares.la curl/stage/lib/libcurl.la
 
-CURL_PV=7.32.0
-CURL_SHA=cadc5648e4cd4ea750a8c580311722ed1fb1573a
+CURL_PV=7.35.0
+CURL_SHA=35c2b1f8c56912ab7bebaa61cf4494c94a0ed0d1
 ifeq ($(OS), Windows_NT)
 	CURL_WITH_SSL=--with-winssl
 	CURL_SHARED_LIBS=--enable-shared=yes
@@ -435,7 +451,7 @@ jq: git_submodules ../bin/jq
 
 ../bin/jq: jq/
 	(cd jq; autoreconf --install)
-	(if [[ "$(UNAME)" == Darwin ]] && ! (gcc --version | grep -q LLVM); then export LDFLAGS="$$LDFLAGS -lgcc_eh"; fi; \
+	(if [[ "$(UNAME)" == Darwin ]] && [[ ! "$(CC)" == clang ]] && ! (gcc --version | grep -q LLVM); then export LDFLAGS="$$LDFLAGS -lgcc_eh"; fi; \
 	 cd jq; ./configure --disable-docs)
 	$(MAKE) -C jq -j PATH=$$(brew --prefix bison || echo .)/bin:$$PATH
 	cp -f jq/jq ../bin/

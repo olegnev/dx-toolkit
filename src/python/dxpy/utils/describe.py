@@ -266,8 +266,26 @@ def get_io_field(io_hash, defaults=None, delim='=', highlight_fields=()):
                                  break_long_words=False) for key, value in defaults.items()])[16:]
 
 def get_resolved_jbors(resolved_thing, orig_thing, resolved_jbors):
+    if resolved_thing == orig_thing:
+        return
     if is_job_ref(orig_thing):
-        resolved_jbors[jbor_to_str(orig_thing)] = resolved_thing
+        jbor_str = jbor_to_str(orig_thing)
+        if jbor_str not in resolved_jbors:
+            try:
+                from dxpy.api import job_describe
+                job_output = job_describe(get_job_from_jbor(orig_thing)).get('output')
+                if job_output is not None:
+                    field_value = job_output.get(get_field_from_jbor(orig_thing))
+                    jbor_index = get_index_from_jbor(orig_thing)
+                    if jbor_index is not None:
+                        if isinstance(field_value, list):
+                            resolved_jbors[jbor_str] = field_value[jbor_index]
+                    else:
+                        resolved_jbors[jbor_str] = field_value
+            except:
+                # Just don't report any resolved JBORs if there are
+                # any problems
+                pass
     elif isinstance(orig_thing, list):
         for i in range(len(orig_thing)):
             get_resolved_jbors(resolved_thing[i], orig_thing[i], resolved_jbors)
@@ -398,14 +416,6 @@ def print_project_desc(desc, verbose=False):
 def print_app_desc(desc, verbose=False):
     recognized_fields = ['id', 'class', 'name', 'version', 'aliases', 'createdBy', 'created', 'modified', 'deleted', 'published', 'title', 'subtitle', 'description', 'categories', 'access', 'dxapi', 'inputSpec', 'outputSpec', 'runSpec', 'resources', 'billTo', 'installed', 'openSource', 'summary', 'applet', 'installs', 'billing', 'details', 'developerNotes',
                          'authorizedUsers']
-
-    advanced_inputs = []
-    details = desc["details"]
-    if isinstance(details, dict) and "advancedInputs" in details:
-        if not verbose:
-            advanced_inputs = details["advancedInputs"]
-        del details["advancedInputs"]
-
     print_field("ID", desc["id"])
     print_field("Class", desc["class"])
     if 'billTo' in desc:
@@ -421,6 +431,13 @@ def print_app_desc(desc, verbose=False):
     print_json_field('Open source', desc['openSource'])
     print_json_field('Deleted', desc['deleted'])
     if not desc['deleted']:
+        advanced_inputs = []
+        details = desc["details"]
+        if isinstance(details, dict) and "advancedInputs" in details:
+            if not verbose:
+                advanced_inputs = details["advancedInputs"]
+            del details["advancedInputs"]
+
         if 'published' not in desc or desc["published"] < 0:
             print_field("Published", "-")
         else:
@@ -556,7 +573,7 @@ def print_data_obj_desc(desc, verbose=False):
                 else:
                     print_field("Size", str(desc['size']))
             elif field == "length":
-                if desc["class"] == "gtable" or desc['class'] == 'table':
+                if desc["class"] == "gtable":
                     print_field("Size (rows)", str(desc['length']))
                 else:
                     print_field("Length", str(desc['length']))
@@ -726,6 +743,11 @@ def print_user_desc(desc):
     print_field("Name", desc["first"] + " " + ((desc["middle"] + " ") if desc["middle"] != '' else '') + desc["last"])
     if "email" in desc:
         print_field("Email", desc["email"])
+
+    bill_to_label = "Default bill to"
+    if "billTo" in desc:
+        print_field(bill_to_label, desc["billTo"])
+
     if "appsInstalled" in desc:
         print_list_field("Apps installed", desc["appsInstalled"])
 

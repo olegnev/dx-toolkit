@@ -16,9 +16,9 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-from __future__ import print_function, unicode_literals
+from __future__ import print_function, unicode_literals, division, absolute_import
 
-import os, sys, unittest, subprocess, re
+import os, sys, unittest, subprocess, re, platform
 from contextlib import contextmanager
 
 import dxpy
@@ -33,8 +33,18 @@ TEST_NO_RATE_LIMITS = _run_all_tests or 'DXTEST_NO_RATE_LIMITS' in os.environ
 TEST_RUN_JOBS = _run_all_tests or 'DXTEST_RUN_JOBS' in os.environ
 TEST_TCSH = _run_all_tests or 'DXTEST_TCSH' in os.environ
 
+TEST_DX_LOGIN = 'DXTEST_LOGIN' in os.environ
+TEST_BENCHMARKS = 'DXTEST_BENCHMARKS' in os.environ   ## Used to exclude benchmarks from normal runs
+
 def _transform_words_to_regexp(s):
     return r"\s+".join(re.escape(word) for word in s.split())
+
+
+def host_is_centos_5():
+    distro = platform.linux_distribution()
+    if distro[0] == 'CentOS' and distro[1].startswith('5.'):
+        return True
+    return False
 
 class DXCalledProcessError(subprocess.CalledProcessError):
     def __init__(self, returncode, cmd, output=None, stderr=None):
@@ -78,27 +88,101 @@ def check_output(*popenargs, **kwargs):
         raise exc
     return output
 
+@contextmanager
+def temporary_project(name='dx client tests temporary project', cleanup=True, reclaim_permissions=False, select=False):
+    """Creates a temporary project scoped to the context manager, and
+    yields a DXProject handler for the project.
+
+    :param cleanup: if False, do not clean up the project when done (useful for debugging so you can examine the state of the project)
+    :type cleanup: bool
+    :param reclaim_permissions: if True, attempts a project-xxxx/join before trying to destroy the project. May be needed if the test reduced its own permissions in the project.
+    :type reclaim_permissions: bool
+    :param select:
+        if True, sets the environment variable DX_PROJECT_CONTEXT_ID
+        (and restores the previous value afterwards) so that subprocess
+        calls made within the block use the new project by default.
+    :type select: bool
+
+    """
+    temp_project = dxpy.DXProject(dxpy.api.project_new({'name': name})['id'])
+    try:
+        if select:
+            with select_project(temp_project):
+                yield temp_project
+        else:
+            yield temp_project
+    finally:
+        if reclaim_permissions:
+            dxpy.DXHTTPRequest('/' + temp_project.get_id() + '/join', {'level': 'ADMINISTER'})
+        if cleanup:
+            dxpy.api.project_destroy(temp_project.get_id(), {"terminateJobs": True})
+
+
+@contextmanager
+def select_project(project_or_project_id):
+    """Selects a project by setting the DX_PROJECT_CONTEXT_ID in
+    dxpy.config (and therefore os.environ); this change is propagated
+    to subprocesses that are invoked with the default settings. The
+    original setting of DX_PROJECT_CONTEXT_ID is restored when the
+    block exits.
+
+    :param project_or_project_id:
+        Project or container to select. May be specified either as a
+        string containing the project ID, or a DXProject handler.
+    :type project_or_project_id: str or DXProject
+
+    """
+    if isinstance(project_or_project_id, basestring) or project_or_project_id is None:
+        project_id = project_or_project_id
+    else:
+        project_id = project_or_project_id.get_id()
+    current_project_env_var = dxpy.config.get('DX_PROJECT_CONTEXT_ID', None)
+    if project_id is None:
+        del dxpy.config['DX_PROJECT_CONTEXT_ID']
+    else:
+        dxpy.config['DX_PROJECT_CONTEXT_ID'] = project_id
+    try:
+        yield None
+    finally:
+        if current_project_env_var is None:
+            del dxpy.config['DX_PROJECT_CONTEXT_ID']
+        else:
+            dxpy.config['DX_PROJECT_CONTEXT_ID'] = current_project_env_var
+
+
+# Invoke "dx cd" without using bash (as 'run' would) so that the config
+# gets attached to this Python process (instead of the bash process) and
+# will be applied in later calls in the same test.
+#
+# Some tests can also use the select_project helper but that code sets
+# the environment variables, and this writes the config to disk, and we
+# should test both code paths.
+def cd(directory):
+    print("$ dx cd %s" % (directory,))
+    output = check_output(['dx', 'cd', directory], shell=False)
+    print(output)
+    return output
+
 
 class DXTestCase(unittest.TestCase):
     def setUp(self):
         proj_name = u"dxclient_test_pröject"
-        # Unplug stdin so that dx doesn't prompt user for input at the tty
-        self.project = subprocess.check_output(u"dx new project '{p}' --brief".format(p=proj_name), shell=True, stdin=subprocess.PIPE).strip()
-        os.environ["DX_PROJECT_CONTEXT_ID"] = self.project
-        subprocess.check_call(u"dx cd "+self.project+":/", shell=True)
-        dxpy._initialize(suppress_warning=True)
-        if 'DX_CLI_WD' in os.environ:
-            del os.environ['DX_CLI_WD']
+        self.project = dxpy.api.project_new({"name": proj_name})['id']
+        dxpy.config["DX_PROJECT_CONTEXT_ID"] = self.project
+        cd(self.project + ":/")
+        dxpy.config.__init__(suppress_warning=True)
+        if 'DX_CLI_WD' in dxpy.config:
+            del dxpy.config['DX_CLI_WD']
 
     def tearDown(self):
         try:
-            subprocess.check_call(u"dx rmproject --yes --quiet {p}".format(p=self.project), shell=True)
+            dxpy.api.project_destroy(self.project, {"terminateJobs": True})
         except Exception as e:
             print("Failed to remove test project:", str(e))
-        if 'DX_PROJECT_CONTEXT_ID' in os.environ:
-            del os.environ['DX_PROJECT_CONTEXT_ID']
-        if 'DX_CLI_WD' in os.environ:
-            del os.environ['DX_CLI_WD']
+        if 'DX_PROJECT_CONTEXT_ID' in dxpy.config:
+            del dxpy.config['DX_PROJECT_CONTEXT_ID']
+        if 'DX_CLI_WD' in dxpy.config:
+            del dxpy.config['DX_CLI_WD']
 
     # Be sure to use the check_output defined in this module if you wish
     # to use stderr_regexp. Python's usual subprocess.check_output
@@ -140,8 +224,9 @@ class DXTestCase(unittest.TestCase):
             if stderr_regexp:
                 if not hasattr(e, 'stderr'):
                     raise Exception('A stderr_regexp was supplied but the CalledProcessError did not return the contents of stderr')
-                print("stderr:")
-                print(e.stderr)
-                self.assertTrue(re.search(stderr_regexp, e.stderr), "Expected stderr to match '%s' but it didn't" % (stderr_regexp,))
+                if not re.search(stderr_regexp, e.stderr):
+                    print("stderr:")
+                    print(e.stderr)
+                    self.fail("Expected stderr to match '%s' but it didn't" % (stderr_regexp,))
             return
         self.assertFalse(True, "Expected command to fail with CalledProcessError but it succeeded")

@@ -21,7 +21,11 @@ Exceptions for the :mod:`dxpy` package.
 from __future__ import (print_function, unicode_literals)
 
 import os, sys, json, traceback, errno
-from .packages import requests
+import requests
+
+import dxpy
+
+EXPECTED_ERR_EXIT_STATUS = 3
 
 class DXError(Exception):
     '''Base class for exceptions in this package.'''
@@ -42,10 +46,15 @@ class DXAPIError(DXError):
             self.details = None
         self.code = code
 
-    def __str__(self):
+    def error_message(self):
+        "Returns a one-line description of the error."
         output = self.msg + ", code " + str(self.code)
         if self.name != self.__class__.__name__:
             output = self.name + ": " + output
+        return output
+
+    def __str__(self):
+        output = self.error_message()
         if self.details:
             output += "\nDetails: " + json.dumps(self.details, indent=4)
         return output
@@ -155,6 +164,15 @@ class ContentLengthError(requests.HTTPError):
     '''Will be raised when actual content length received from server does not match the "Content-Length" header'''
     pass
 
+
+def format_exception(e):
+    """Returns a string containing the type and text of the exception.
+
+    """
+    from .utils.printing import fill
+    return '\n'.join(fill(line) for line in traceback.format_exception_only(type(e), e))
+
+
 def exit_with_exc_info(code=1, message='', print_tb=False, exception=None):
     '''Exits the program, printing information about the last exception (if
     any) and an optional error message.  Uses *exception* instead if provided.
@@ -167,11 +185,14 @@ def exit_with_exc_info(code=1, message='', print_tb=False, exception=None):
     :type print_tb: boolean
     :type exception: an exception to use in place of the last exception raised
     '''
-    exc_type, exc_value = (exception.__class__.__name__, exception) \
+    exc_type, exc_value = (exception.__class__, exception) \
                           if exception is not None else sys.exc_info()[:2]
+
     if exc_type is not None:
         if print_tb:
             traceback.print_exc()
+        elif isinstance(exc_value, KeyboardInterrupt):
+            sys.stderr.write('^C\n')
         else:
             for line in traceback.format_exception_only(exc_type, exc_value):
                 sys.stderr.write(line)
@@ -182,6 +203,8 @@ def exit_with_exc_info(code=1, message='', print_tb=False, exception=None):
     sys.exit(code)
 
 network_exceptions = (requests.ConnectionError,
+                      requests.exceptions.ChunkedEncodingError,
+                      requests.exceptions.ContentDecodingError,
                       requests.HTTPError,
                       requests.Timeout,
                       requests.packages.urllib3.connectionpool.HTTPException)
@@ -213,10 +236,13 @@ def err_exit(message='', code=None, expected_exceptions=default_expected_excepti
         message = arg_parser.prog + ": " + message
 
     exc = exception if exception is not None else sys.exc_info()[1]
-    if isinstance(exc, expected_exceptions):
-        exit_with_exc_info(3, message, print_tb=True if '_DX_DEBUG' in os.environ else False,
-                           exception=exception)
+    if isinstance(exc, SystemExit):
+        raise
+    elif isinstance(exc, expected_exceptions):
+        exit_with_exc_info(EXPECTED_ERR_EXIT_STATUS, message, print_tb=dxpy._DEBUG > 0, exception=exception)
     elif ignore_sigpipe and isinstance(exc, IOError) and getattr(exc, 'errno', None) == errno.EPIPE:
+        if dxpy._DEBUG > 0:
+            print("Broken pipe", file=sys.stderr)
         sys.exit(3)
     else:
         if code is None:

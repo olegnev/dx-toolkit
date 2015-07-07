@@ -17,7 +17,7 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-from __future__ import print_function, unicode_literals
+from __future__ import print_function, unicode_literals, division, absolute_import
 
 import os, sys, unittest, json, tempfile, subprocess
 import pexpect
@@ -27,6 +27,7 @@ import dxpy_testutil as testutil
 
 import dxpy
 from dxpy.scripts import dx_build_app
+from dxpy.exceptions import DXCLIError
 
 supported_languages = ['Python', 'C++', 'bash']
 
@@ -150,13 +151,21 @@ class TestDXAppWizardAndRunAppLocally(DXTestCase):
         dxapp_json = json.load(open(os.path.join(appdir, 'dxapp.json')))
         self.assertEqual(dxapp_json.get('authorizedUsers'), [])
 
-    def test_dx_run_app_locally(self):
+    def test_dx_run_app_locally_interactively(self):
+        appdir = create_app_dir()
+        local_run = pexpect.spawn("dx-run-app-locally {} -iin1=8".format(appdir))
+        local_run.expect("Confirm")
+        local_run.sendline()
+        local_run.expect("App finished successfully")
+        local_run.expect("Final output: out1 = 140")
+        local_run.close()
+
+    def test_dx_run_app_locally_noninteractively(self):
         appdir = create_app_dir()
         output = check_output(['dx-run-app-locally', appdir, '-iin1=8'])
         print(output)
         self.assertIn("App finished successfully", output)
         self.assertIn("Final output: out1 = 140", output)
-        return appdir
 
     @unittest.skipUnless(testutil.TEST_RUN_JOBS,
                          'skipping test that would run jobs')
@@ -197,9 +206,10 @@ class TestDXAppWizardAndRunAppLocally(DXTestCase):
             "version": "0.0.1",
             "categories": [],
             "inputSpec": [
-                {"name": "required_file",
-                 "class": "file",
-                 "optional": False
+                {
+                    "name": "required_file",
+                    "class": "file",
+                    "optional": False
                 },
                 {
                     "name": "optional_file",
@@ -343,11 +353,105 @@ class TestDXAppWizardAndRunAppLocally(DXTestCase):
             print(output)
             self.assertIn("App finished successfully", output)
 
-            if testutil.TEST_RUN_JOBS:
+            # See PTFM-13697 for CentOS 5 details
+            if testutil.TEST_RUN_JOBS and not testutil.host_is_centos_5():
                 # Now actually make it an applet and run it
                 applet_name = dxapp_json['name'] + '-' + lang
                 subprocess.check_output(['dx', 'build', appdir, '--destination', applet_name])
                 subprocess.check_output(['dx', 'run', applet_name, '-y', '--wait'] + cmdline_args)
+
+'''
+test the upload/download helpers by running them locally
+'''
+class TestDXBashHelpers(DXTestCase):
+    def run_test_app_locally(self, app_name, arg_list):
+        '''
+        :param app_name: name of app to run
+        :param arg_list: list of command line arguments given to an app
+
+        Runs an app locally, with a given set of command line arguments
+        '''
+        path = os.path.join(os.path.dirname(__file__), "file_load")
+        args = ['dx-run-app-locally', os.path.join(path, app_name)]
+        args.extend(arg_list)
+        check_output(args)
+
+    def test_vars(self):
+        """Tests bash variable generation """
+        # Make a couple files for testing
+        dxpy.upload_string("1234", name="A.txt", wait_on_close=True)
+        self.run_test_app_locally('vars', ['-iseq1=A.txt', '-iseq2=A.txt', '-igenes=A.txt', '-igenes=A.txt',
+                                           '-ii=5', '-ix=4.2', '-ib=true', '-is=hello',
+                                           '-iil=6', '-iil=7', '-iil=8',
+                                           '-ixl=3.3', '-ixl=4.4', '-ixl=5.0',
+                                           '-ibl=true', '-ibl=false', '-ibl=true',
+                                           '-isl=hello', '-isl=world', '-isl=next',
+                                           '-imisc={"hello": "world", "foo": true}'])
+
+    def test_prefix_patterns(self):
+        """ Tests that the bash prefix variable works correctly, and
+        respects patterns.
+        """
+        buf = "1234"
+        filenames = ["A.bar", "A.json.dot.bar", "A.vcf.pam", "A.foo.bar", "fooxxx.bam", "A.bar.gz", "x13year23.sam"]
+        for fname in filenames:
+            dxpy.upload_string(buf, name=fname, wait_on_close=True)
+        self.run_test_app_locally('prefix_patterns', ['-iseq1=A.bar',
+                                                      '-iseq2=A.json.dot.bar',
+                                                      '-igene=A.vcf.pam',
+                                                      '-imap=A.foo.bar',
+                                                      '-imap2=fooxxx.bam',
+                                                      '-imap3=A.bar',
+                                                      '-imap4=A.bar.gz',
+                                                      '-imulti=x13year23.sam'])
+
+    def test_deepdirs(self):
+        self.run_test_app_locally('deepdirs', [])
+
+    def test_basic(self):
+        '''Tests upload/download helpers
+
+        '''
+        # Make a couple files for testing
+        dxpy.upload_string("1234", wait_on_close=True, name="A.txt")
+
+        # this invocation should fail with a CLI exception
+        with self.assertRaises(testutil.DXCalledProcessError):
+            self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt'])
+
+        dxpy.upload_string("ABCD", wait_on_close=True, name="B.txt")
+
+        # these should succeed
+        self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt',
+                                            '-iref=A.txt', '-iref=B.txt',
+                                            "-ivalue=5", '-iages=1'])
+        self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt', '-ibar=A.txt',
+                                            '-iref=A.txt', '-iref=B.txt',
+                                            "-ivalue=5", '-iages=1'])
+        self.run_test_app_locally('basic', ['-iseq1=A.txt', '-iseq2=B.txt',
+                                            '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
+                                            '-iages=1', '-iages=11', '-iages=33'])
+
+        # check the except flags
+        self.run_test_app_locally('basic_except', ['-iseq1=A.txt', '-iseq2=B.txt',
+                                                   '-iref=A.txt', '-iref=B.txt', "-ivalue=5",
+                                                   '-iages=1', '-iages=11', '-iages=33'])
+
+    def test_sub_jobs(self):
+        '''  Tests a bash script that generates sub-jobs '''
+        dxpy.upload_string("1234", wait_on_close=True, name="A.txt")
+        dxpy.upload_string("ABCD", wait_on_close=True, name="B.txt")
+        self.run_test_app_locally('with-subjobs', ["-ifiles=A.txt", "-ifiles=B.txt"])
+
+    def test_parseq(self):
+        ''' Tests the parallel/sequential variations '''
+        dxpy.upload_string("1234", wait_on_close=True, name="A.txt")
+        dxpy.upload_string("ABCD", wait_on_close=True, name="B.txt")
+        self.run_test_app_locally('parseq', ["-iseq1=A.txt", "-iseq2=B.txt", "-iref=A.txt", "-iref=B.txt"])
+
+    def test_file_optional(self):
+        ''' Tests that file optional input arguments are handled correctly '''
+        self.run_test_app_locally('file_optional', ["-icreate_seq3=true"])
 
 if __name__ == '__main__':
     unittest.main()

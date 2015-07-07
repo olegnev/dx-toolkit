@@ -17,11 +17,16 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
+from __future__ import print_function, unicode_literals, division, absolute_import
+
 import os, unittest, tempfile, filecmp, time, json, sys
+import requests
+import string
+import subprocess
 
 import dxpy
 import dxpy_testutil as testutil
-from dxpy.exceptions import DXAPIError, DXFileError, DXError, DXJobFailureError
+from dxpy.exceptions import DXAPIError, DXFileError, DXError, DXJobFailureError, ServiceUnavailable, InvalidInput
 from dxpy.utils import pretty_print, warn
 
 def get_objects_from_listf(listf):
@@ -192,6 +197,29 @@ class TestDXProject(unittest.TestCase):
         with self.assertRaises(DXAPIError):
             dxrecord.describe()
 
+class TestDXFileFunctions(unittest.TestCase):
+    def test_get_buffer_size(self):
+        for file_is_mmapd in (False, True):
+            # This method implements its own sanity checks, so just
+            # ensure that those pass for a variety of sizes.
+            dxpy.bindings.dxfile_functions._get_buffer_size_for_file(0, file_is_mmapd=file_is_mmapd)
+            dxpy.bindings.dxfile_functions._get_buffer_size_for_file(1, file_is_mmapd=file_is_mmapd)
+            dxpy.bindings.dxfile_functions._get_buffer_size_for_file(5 * 1024 * 1024, file_is_mmapd=file_is_mmapd)
+            dxpy.bindings.dxfile_functions._get_buffer_size_for_file(16 * 1024 * 1024, file_is_mmapd=file_is_mmapd)
+            dxpy.bindings.dxfile_functions._get_buffer_size_for_file(160 * 1024 * 1024 * 1024, file_is_mmapd=file_is_mmapd)
+            dxpy.bindings.dxfile_functions._get_buffer_size_for_file(290 * 1024 * 1024 * 1024, file_is_mmapd=file_is_mmapd)
+
+    def test_job_detection(self):
+        env = dict(os.environ, DX_JOB_ID='job-00000000000000000000')
+        buffer_size = subprocess.check_output(
+            "python -c 'import dxpy; print dxpy.bindings.dxfile.DEFAULT_BUFFER_SIZE'", shell=True, env=env)
+        self.assertEqual(int(buffer_size), 96 * 1024 * 1024)
+        del env['DX_JOB_ID']
+        buffer_size = subprocess.check_output(
+            "python -c 'import dxpy; print dxpy.bindings.dxfile.DEFAULT_BUFFER_SIZE'", shell=True, env=env)
+        self.assertEqual(int(buffer_size), 16 * 1024 * 1024)
+
+
 class TestDXFile(unittest.TestCase):
 
     '''
@@ -322,6 +350,28 @@ class TestDXFile(unittest.TestCase):
             buf = same_dxfile.read()
             self.assertEqual(self.foo_str[-1:], buf)
 
+    def test_dxfile_sequential_optimization(self):
+        # Make data longer than 128k to trigger the
+        # first-sequential-read optimization
+        data = (string.ascii_letters + string.digits + '._+') * 2017
+        previous_job_id = dxpy.JOB_ID
+        # Optimization is only applied within a job environment
+        dxpy.set_job_id('job-000000000000000000000000')
+        try:
+            file_id = dxpy.upload_string(data, wait_on_close=True).get_id()
+            for first_read_length in [65498, 120001, 230001]:
+                fh = dxpy.DXFile(file_id)
+                first_read = fh.read(first_read_length)
+                cptr = fh.tell()
+                self.assertEqual(cptr, min(first_read_length, len(data)))
+                next_read = fh.read(2 ** 16)
+                fh.seek(cptr)
+                read_after_seek = fh.read(2 ** 16)
+                self.assertEqual(next_read, read_after_seek)
+                self.assertEqual(next_read, data[first_read_length:first_read_length + 2 ** 16].encode('utf-8'))
+        finally:
+            dxpy.set_job_id(previous_job_id)
+
     def test_iter_dxfile(self):
         dxid = ""
         with dxpy.new_dxfile() as self.dxfile:
@@ -361,6 +411,21 @@ class TestDXFile(unittest.TestCase):
         dxfile = dxpy.new_dxfile(mode='w')
         dxfile.write("Haha")
         # No assertion here, but this should print an error
+
+    def test_download_url_helper(self):
+        dxfile = dxpy.upload_string(self.foo_str, wait_on_close=True)
+        for opts in {}, {"preauthenticated": True, "filename": "foo"}:
+            # File download token/URL is cached
+            dxfile = dxpy.open_dxfile(dxfile.get_id())
+            url1 = dxfile.get_download_url(**opts)
+            url2 = dxfile.get_download_url(**opts)
+            self.assertEqual(url1, url2)
+            # Cache is invalidated when the client knows the token has expired
+            # (subject to clock skew allowance of 60s)
+            dxfile = dxpy.open_dxfile(dxfile.get_id())
+            url3 = dxfile.get_download_url(duration=60, **opts)
+            url4 = dxfile.get_download_url(**opts)
+            self.assertNotEqual(url3, url4)
 
 class TestDXGTable(unittest.TestCase):
     """
@@ -435,7 +500,7 @@ class TestDXGTable(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.dxgtable.add_rows(data=[["303", 1.248, 123, "True"]], part=4) # Bad column 3
         # Correct column types
-        self.dxgtable.add_rows(data=[[u"303", 1.248, 123, True]], part=5)
+        self.dxgtable.add_rows(data=[["303", 1.248, 123, True]], part=5)
         self.dxgtable.close(block=True)
 
     def test_add_rows_no_index(self):
@@ -677,10 +742,10 @@ class TestDXGTable(unittest.TestCase):
                                           indices=[lex_index])
         self.dxgtable.close(block=True)
         desc = self.dxgtable.describe()
-        self.assertEqual({u"name": u"search",
-                          u"type": u"lexicographic",
-                          u"columns": [{u"name": u"a", u"order": u"asc", u"caseSensitive": False},
-                                       {u"name": u"b", u"order": u"desc"}]},
+        self.assertEqual({"name": "search",
+                          "type": "lexicographic",
+                          "columns": [{"name": "a", "order": "asc", "caseSensitive": False},
+                                       {"name": "b", "order": "desc"}]},
                          desc['indices'][0])
 
     # TODO: Test with > 1 index
@@ -974,6 +1039,19 @@ class TestDXRecord(unittest.TestCase):
         with self.assertRaises(TypeError):
             dxrecord = dxpy.new_dxrecord(foo=1)
 
+    def test_custom_describe_fields(self):
+        dxrecord = dxpy.new_dxrecord(name="recordname", tags=["tag"], details={}, folder="/")
+        self.assertEqual(dxrecord.describe(fields={"name", "tags"}),
+                         {"id": dxrecord.get_id(), "name": "recordname", "tags": ["tag"]})
+        self.assertEqual(dxrecord.describe(fields={"name", "tags"}, default_fields=False),
+                         {"id": dxrecord.get_id(), "name": "recordname", "tags": ["tag"]})
+        describe_with_custom_fields = dxrecord.describe(fields={"name", "properties"}, default_fields=True)
+        self.assertIn('name', describe_with_custom_fields)
+        self.assertIn('modified', describe_with_custom_fields)
+        self.assertIn('properties', describe_with_custom_fields)
+        self.assertNotIn('details', describe_with_custom_fields)
+
+
 @unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping test that would run a job')
 class TestDXAppletJob(unittest.TestCase):
     def setUp(self):
@@ -1046,14 +1124,14 @@ def main():
         dxjob.add_tags(["foo", "bar", "foo"])
         dxjob.set_properties({"foo": "bar", "$dnanexus.link": "thing"})
         jobdesc = dxjob.describe()
-        self.assertEqual(sorted(jobdesc["tags"]), sorted(["foo", "bar", "$foo.bar"]))
+        self.assertEqual(set(jobdesc["tags"]), set(["foo", "bar", "$foo.bar"]))
         self.assertEqual(jobdesc["properties"], {"foo": "bar",
                                                  "$dnanexus.link": "thing",
                                                  "$dnanexus_link.foo": "barbaz"})
         dxjob.remove_tags(["bar", "baz"])
         dxjob.set_properties({"$dnanexus.link": None})
         jobdesc = dxjob.describe()
-        self.assertEqual(sorted(jobdesc["tags"]), sorted(["foo", "$foo.bar"]))
+        self.assertEqual(set(jobdesc["tags"]), set(["foo", "$foo.bar"]))
         self.assertEqual(jobdesc["properties"], {"foo": "bar", "$dnanexus_link.foo": "barbaz"})
 
         # Test with fields parameter
@@ -1132,7 +1210,7 @@ def main(number):
         dxanalysis.add_tags(["foo", "bar", "foo"])
         dxanalysis.set_properties({"foo": "bar", "$dnanexus.link": "thing"})
         analysis_desc = dxanalysis.describe()
-        self.assertEqual(sorted(analysis_desc["tags"]), sorted(["foo", "bar"]))
+        self.assertEqual(set(analysis_desc["tags"]), set(["foo", "bar"]))
         self.assertEqual(analysis_desc["properties"], {"foo": "bar", "$dnanexus.link": "thing"})
         dxanalysis.remove_tags(["bar", "baz"])
         dxanalysis.set_properties({"$dnanexus.link": None})
@@ -1566,8 +1644,8 @@ class TestDXApp(unittest.TestCase):
                               "interpreter": "python2.7",
                               "execDepends": [{"name": "python-numpy"}]})
         dxapp = dxpy.DXApp()
-        dxapp.new(applet=dxapplet.get_id(), version="0.0.1",
-                  bill_to="user-000000000000000000000000", name="app_name")
+        my_userid = dxpy.whoami()
+        dxapp.new(applet=dxapplet.get_id(), version="0.0.1", bill_to=my_userid, name="app_name")
         appdesc = dxapp.describe()
         self.assertEqual(appdesc["name"], "app_name")
         self.assertEqual(appdesc["version"], "0.0.1")
@@ -1611,8 +1689,8 @@ class TestDXApp(unittest.TestCase):
                               "interpreter": "python2.7",
                               "execDepends": [{"name": "python-numpy"}]})
         dxapp = dxpy.DXApp()
-        dxapp.new(applet=dxapplet.get_id(), version="0.0.1",
-                  bill_to="user-000000000000000000000000", name="test_add_and_remove_tags_app")
+        my_userid = dxpy.whoami()
+        dxapp.new(applet=dxapplet.get_id(), version="0.0.1", bill_to=my_userid, name="test_add_and_remove_tags_app")
         appdesc = dxapp.describe()
 
         self.assertEqual(appdesc.get("tags", []), [])
@@ -1649,6 +1727,39 @@ class TestDXSearch(unittest.TestCase):
     def tearDown(self):
         tearDownTempProjects(self)
 
+    def test_resolve_data_objects(self):
+        # If the project is provided for an object, then it will be used instead of
+        # the top-level project specification
+        new_proj_id = dxpy.api.project_new({'name': 'test project 1'})['id']
+        dxrecord0 = dxpy.new_dxrecord(name="myrecord0", project=self.proj_id)
+        dxrecord1 = dxpy.new_dxrecord(name="myrecord1", project=new_proj_id)
+        dxrecord2 = dxpy.new_dxrecord(name="myrecord2", project=self.proj_id)
+        dxrecord2 = dxpy.new_dxrecord(name="myrecord3", project=new_proj_id)
+        records = [{"name": "myrecord0", "project": self.proj_id, "folder": "/"},
+                   {"name": "myrecord1"},
+                   {"name": "myrecord2"},
+                   {"name": "myrecord3", "project": self.proj_id, "folder": "/"}]
+
+        objects = list(dxpy.search.resolve_data_objects(records, project=new_proj_id))
+        self.assertEqual(len(objects), 4)
+        self.assertEqual(objects[0][0]["project"], self.proj_id)
+        self.assertEqual(objects[0][0]["id"], dxrecord0.get_id())
+        self.assertEqual(objects[1][0]["project"], new_proj_id)
+        self.assertEqual(objects[1][0]["id"], dxrecord1.get_id())
+        self.assertEqual(objects[2], [])
+        self.assertEqual(objects[3], [])
+
+        # Test that batching happens correctly
+        record_names = []
+        record_ids = []
+        for i in range(1005):
+            record_ids.append(dxpy.new_dxrecord(name=("record" + str(i))).get_id())
+            record_names.append({"name": "record" + str(i)})
+        objects = list(dxpy.search.resolve_data_objects(record_names, project=self.proj_id))
+        self.assertEqual(len(objects), 1005)
+        self.assertEqual(objects[200][0]["id"], record_ids[200])
+        self.assertEqual(objects[1003][0]["id"], record_ids[1003])
+
     def test_find_data_objs(self):
         dxrecord = dxpy.new_dxrecord()
         results = list(dxpy.search.find_data_objects(state="open", project=self.proj_id))
@@ -1664,6 +1775,53 @@ class TestDXSearch(unittest.TestCase):
                                       "id": dxrecord.get_id()})
         with self.assertRaises(DXError):
             dxpy.search.find_data_objects(tag='foo', tags=['foo', 'bar'])
+
+    def test_find_data_objs_by_time(self):
+        def query(**kwargs):
+            return dxpy.search.find_data_objects(name='find_by_time', project=self.proj_id, **kwargs)
+
+        dxrecord = dxpy.new_dxrecord(name='find_by_time')
+        now = int(time.time()) * 1000
+
+        # Negative integers interpreted as offsets (in ms) to the
+        # current time
+        #
+        # Sleep for a short time so we can formulate tests that allow us
+        # to verify that negative offsets are being interpreted as ms,
+        # not as seconds.
+        time.sleep(2.0)
+        self.assertEqual(len(list(query(modified_after=-100))), 0)
+        self.assertEqual(len(list(query(modified_after=-60 * 1000))), 1)
+        self.assertEqual(len(list(query(modified_before=-60 * 1000))), 0)
+        self.assertEqual(len(list(query(modified_before=-100))), 1)
+        self.assertEqual(len(list(query(created_after=-60 * 1000))), 1)
+        self.assertEqual(len(list(query(created_after=-100))), 0)
+        self.assertEqual(len(list(query(created_before=-60 * 1000))), 0)
+        self.assertEqual(len(list(query(created_before=-100))), 1)
+
+        # Nonnegative integers interpreted as ms since epoch
+        self.assertEqual(len(list(query(modified_after=now - 60 * 1000))), 1)
+        self.assertEqual(len(list(query(modified_after=now + 60 * 1000))), 0)
+        self.assertEqual(len(list(query(modified_before=now + 60 * 1000))), 1)
+        self.assertEqual(len(list(query(modified_before=now - 60 * 1000))), 0)
+        self.assertEqual(len(list(query(created_after=now - 60 * 1000))), 1)
+        self.assertEqual(len(list(query(created_after=now + 60 * 1000))), 0)
+        self.assertEqual(len(list(query(created_before=now + 60 * 1000))), 1)
+        self.assertEqual(len(list(query(created_before=now - 60 * 1000))), 0)
+
+        # Strings with (negative int + suffix) to be interpreted as
+        # offset from the current time
+        self.assertEqual(len(list(query(modified_after="-60s"))), 1)
+        self.assertEqual(len(list(query(modified_before="-60s"))), 0)
+        self.assertEqual(len(list(query(created_after="-60s"))), 1)
+        self.assertEqual(len(list(query(created_before="-60s"))), 0)
+        # Positive numbers don't get the same treatment; currently, they
+        # are interpreted as offsets to the Epoch
+        #
+        # self.assertEqual(len(list(query(modified_after="60s"))), 0)
+        # self.assertEqual(len(list(query(modified_before="60s"))), 1)
+        # self.assertEqual(len(list(query(created_after="60s"))), 0)
+        # self.assertEqual(len(list(query(created_before="60s"))), 1)
 
     def test_find_data_objs_in_workspace(self):
         old_workspace = dxpy.WORKSPACE_ID
@@ -1794,7 +1952,12 @@ class TestDXSearch(unittest.TestCase):
             for i in range(len(methods)):
                 conditions = dict(common_conditions, **query['conditions'])
                 conditions['launched_by'] = me
-                results = list(methods[i](**conditions))
+                try:
+                    results = list(methods[i](**conditions))
+                except:
+                    print('Exception occurred when processing query: %r, method: %r' % (query, methods[i]),
+                          file=sys.stderr)
+                    raise
                 if len(results) != query['n_results'][i]:
                     raise Exception("Query " + json.dumps(query['conditions']) + " returned " + str(len(results)) + ", but " + str(query['n_results'][i]) + " were expected")
                 self.assertEqual(len(results), query['n_results'][i])
@@ -1821,12 +1984,12 @@ class TestDXSearch(unittest.TestCase):
 
 class TestPrettyPrint(unittest.TestCase):
     def test_string_escaping(self):
-        self.assertEqual(pretty_print.escape_unicode_string("a"), u"a")
-        self.assertEqual(pretty_print.escape_unicode_string("foo\nbar"), u"foo\\nbar")
-        self.assertEqual(pretty_print.escape_unicode_string("foo\x11bar"), u"foo\\x11bar")
-        self.assertEqual(pretty_print.escape_unicode_string("foo\n\t\rbar"), u"foo\\n\\t\\rbar")
-        self.assertEqual(pretty_print.escape_unicode_string("\n\\"), u"\\n\\\\")
-        self.assertEqual(pretty_print.escape_unicode_string(u"ïñtérnaçiònale"), u"ïñtérnaçiònale")
+        self.assertEqual(pretty_print.escape_unicode_string("a"), "a")
+        self.assertEqual(pretty_print.escape_unicode_string("foo\nbar"), "foo\\nbar")
+        self.assertEqual(pretty_print.escape_unicode_string("foo\x11bar"), "foo\\x11bar")
+        self.assertEqual(pretty_print.escape_unicode_string("foo\n\t\rbar"), "foo\\n\\t\\rbar")
+        self.assertEqual(pretty_print.escape_unicode_string("\n\\"), "\\n\\\\")
+        self.assertEqual(pretty_print.escape_unicode_string("ïñtérnaçiònale"), "ïñtérnaçiònale")
 
 class TestWarn(unittest.TestCase):
     def test_warn(self):
@@ -1836,6 +1999,7 @@ class TestHTTPResponses(unittest.TestCase):
     def test_content_type_no_sniff(self):
         resp = dxpy.api.system_find_projects({'limit': 1}, want_full_response=True)
         self.assertEqual(resp.headers['x-content-type-options'], 'nosniff')
+
     def test_retry_after(self):
         # Do this weird dance here in case there is clock skew between
         # client and server
@@ -1847,12 +2011,76 @@ class TestHTTPResponses(unittest.TestCase):
         self.assertTrue(8000 <= time_elapsed)
         self.assertTrue(time_elapsed <= 16000)
 
+    def test_retry_after_exceeding_max_retries(self):
+        start_time = int(time.time() * 1000)
+        server_time = dxpy.DXHTTPRequest('/system/comeBackLater', {})['currentTime']
+        dxpy.DXHTTPRequest('/system/comeBackLater', {'waitUntil': server_time + 20000})
+        end_time = int(time.time() * 1000)
+        time_elapsed = end_time - start_time
+        self.assertTrue(20000 <= time_elapsed)
+        self.assertTrue(time_elapsed <= 30000)
+
+    def test_retry_after_without_header_set(self):
+        start_time = int(time.time() * 1000)
+        server_time = dxpy.DXHTTPRequest('/system/comeBackLater', {})['currentTime']
+        dxpy.DXHTTPRequest('/system/comeBackLater', {'waitUntil': server_time + 20000, 'setRetryAfter': False})
+        end_time = int(time.time() * 1000)
+        time_elapsed = end_time - start_time
+        self.assertTrue(50000 <= time_elapsed)
+        self.assertTrue(time_elapsed <= 70000)
+
+    def test_generic_exception_not_retryable(self):
+        self.assertFalse(dxpy._is_retryable_exception(KeyError('oops')))
+
+    def test_bad_host(self):
+        # Verify that the exception raised is one that dxpy would
+        # consider to be retryable, but truncate the actual retry loop
+        with self.assertRaises(requests.exceptions.ConnectionError) as exception_cm:
+            dxpy.DXHTTPRequest('http://doesnotresolve.dnanexus.com/', {}, prepend_srv=False, always_retry=False,
+                               max_retries=1)
+        self.assertTrue(dxpy._is_retryable_exception(exception_cm.exception))
+
+    def test_connection_refused(self):
+        # Verify that the exception raised is one that dxpy would
+        # consider to be retryable, but truncate the actual retry loop
+        with self.assertRaises(requests.exceptions.ConnectionError) as exception_cm:
+            # Connecting to a port on which there is no server running
+            dxpy.DXHTTPRequest('http://localhost:20406', {}, prepend_srv=False, always_retry=False, max_retries=1)
+        self.assertTrue(dxpy._is_retryable_exception(exception_cm.exception))
+
+
 class TestDataobjectFunctions(unittest.TestCase):
     def setUp(self):
         setUpTempProjects(self)
 
     def tearDown(self):
         tearDownTempProjects(self)
+
+    def test_dxlink(self):
+        # Wrap a data object in a link
+        dxrecord = dxpy.new_dxrecord(project=self.proj_id)
+        self.assertEqual(dxpy.dxlink(dxrecord.get_id()),
+                         {"$dnanexus_link": dxrecord.get_id()})
+        self.assertEqual(dxpy.dxlink(dxrecord, self.proj_id),
+                         {"$dnanexus_link": {"project": self.proj_id, "id": dxrecord.get_id()}})
+        self.assertEqual(dxpy.dxlink(dxrecord),
+                         {"$dnanexus_link": dxrecord.get_id()})
+
+        # Wrapping an existing link is a no-op
+        self.assertEqual(dxpy.dxlink(dxpy.dxlink(dxrecord)),
+                         dxpy.dxlink(dxrecord))
+        dxjob = dxpy.DXJob('job-123456789012345678901234')
+        self.assertEqual(dxpy.dxlink(dxjob.get_output_ref('output')),
+                         dxjob.get_output_ref('output'))
+
+        # is_dxlink works as expected
+        self.assertFalse(dxpy.is_dxlink(None))
+        self.assertFalse(dxpy.is_dxlink({}))
+        self.assertFalse(dxpy.is_dxlink({"$dnanexus_link": None}))
+        self.assertFalse(dxpy.is_dxlink({"$dnanexus_link": {}}))
+        self.assertTrue(dxpy.is_dxlink({"$dnanexus_link": "x"}))
+        self.assertTrue(dxpy.is_dxlink({"$dnanexus_link": {"id": None}}))
+        self.assertTrue(dxpy.is_dxlink({"$dnanexus_link": {"job": None}}))
 
     def test_get_handler(self):
         dxpy.set_workspace_id(self.second_proj_id)
@@ -1874,6 +2102,23 @@ class TestDataobjectFunctions(unittest.TestCase):
 
         # Handle project IDs
         dxproject = dxpy.get_handler(self.proj_id)
+
+        # Handle apps
+        handler = dxpy.get_handler("app-foo")
+        self.assertIsNone(handler._dxid)
+        self.assertEqual(handler._name, 'foo')
+        self.assertEqual(handler._alias, 'default')
+
+        handler = dxpy.get_handler("app-foo/1.0.0")
+        self.assertIsNone(handler._dxid)
+        self.assertEqual(handler._name, 'foo')
+        self.assertEqual(handler._alias, '1.0.0')
+
+        app_id = "app-123456789012345678901234"
+        handler = dxpy.get_handler(app_id)
+        self.assertEqual(handler._dxid, app_id)
+        self.assertIsNone(handler._name)
+        self.assertIsNone(handler._alias)
 
 class TestResolver(unittest.TestCase):
     def setUp(self):

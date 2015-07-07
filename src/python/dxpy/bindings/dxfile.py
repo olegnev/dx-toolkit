@@ -43,6 +43,9 @@ if dxpy.JOB_ID:
     # platform.
     DEFAULT_BUFFER_SIZE = 1024*1024*96
 
+MD5_READ_CHUNK_SIZE = 1024*1024*4
+FILE_REQUEST_TIMEOUT = 60
+
 class DXFile(DXDataObject):
     '''Remote file object handler.
 
@@ -389,7 +392,7 @@ class DXFile(DXDataObject):
         be in either the "open" or "closing" states.
         '''
 
-        return self.describe(**kwargs)["state"] == "closed"
+        return self.describe(fields={'state'}, **kwargs)["state"] == "closed"
 
     def close(self, block=False, **kwargs):
         '''
@@ -452,17 +455,12 @@ class DXFile(DXDataObject):
         if index is not None:
             req_input["index"] = int(index)
 
-        resp = dxpy.api.file_upload(self._dxid, req_input, **kwargs)
-        url = resp["url"]
-        headers = resp.get("headers", {})
-        headers['Content-Length'] = str(len(data))
-
         md5 = hashlib.md5()
         if hasattr(data, 'seek') and hasattr(data, 'tell'):
-            # data is a buffer
-            rewind_input_buffer_offset = data.tell() # record initial position (so we can rewind back)
+            # data is a buffer; record initial position (so we can rewind back)
+            rewind_input_buffer_offset = data.tell()
             while True:
-                bytes_read = data.read(100 * 1024 * 1024) # TODO: What should be the value of this constant ?
+                bytes_read = data.read(MD5_READ_CHUNK_SIZE)
                 if bytes_read:
                     md5.update(bytes_read)
                 else:
@@ -472,9 +470,35 @@ class DXFile(DXDataObject):
         else:
             md5.update(data)
 
-        headers['Content-MD5'] = md5.hexdigest()
+        req_input["md5"] = md5.hexdigest()
+        req_input["size"] = len(data)
 
-        dxpy.DXHTTPRequest(url, data, headers=headers, jsonify_data=False, prepend_srv=False, always_retry=True, auth=None)
+        def get_upload_url_and_headers():
+            # This function is called from within a retry loop, so to avoid amplifying the number of retries
+            # geometrically, we decrease the allowed number of retries for the nested API call every time.
+            if 'max_retries' not in kwargs:
+                kwargs['max_retries'] = dxpy.DEFAULT_RETRIES
+            elif kwargs['max_retries'] > 0:
+                kwargs['max_retries'] -= 1
+
+            if "timeout" not in kwargs:
+                kwargs["timeout"] = FILE_REQUEST_TIMEOUT
+
+            resp = dxpy.api.file_upload(self._dxid, req_input, **kwargs)
+            url = resp["url"]
+            return url, resp.get("headers", {})
+
+        # The file upload API requires us to get a pre-authenticated upload URL (and headers for it) every time we
+        # attempt an upload. Because DXHTTPRequest will retry requests under retryable conditions, we give it a callback
+        # to ask us for a new upload URL every time it attempts a request (instead of giving them directly).
+        dxpy.DXHTTPRequest(get_upload_url_and_headers,
+                           data,
+                           jsonify_data=False,
+                           prepend_srv=False,
+                           always_retry=True,
+                           timeout=FILE_REQUEST_TIMEOUT,
+                           auth=None,
+                           method='PUT')
 
         self._num_uploaded_parts += 1
 
@@ -505,8 +529,10 @@ class DXFile(DXDataObject):
             args["filename"] = filename
         if project is not None:
             args["project"] = project
-        if self._download_url is None or self._download_url_expires > time.time():
+        if self._download_url is None or self._download_url_expires < time.time():
             # logging.debug("Download URL unset or expired, requesting a new one")
+            if "timeout" not in kwargs:
+                kwargs["timeout"] = FILE_REQUEST_TIMEOUT
             resp = dxpy.api.file_download(self._dxid, args, **kwargs)
             self._download_url = resp["url"]
             self._download_url_headers = resp.get("headers", {})
@@ -514,8 +540,6 @@ class DXFile(DXDataObject):
         return self._download_url, self._download_url_headers
 
     def _generate_read_requests(self, start_pos=0, end_pos=None, **kwargs):
-        url, headers = self.get_download_url(**kwargs)
-
         if self._file_length == None:
             desc = self.describe(**kwargs)
             self._file_length = int(desc["size"])
@@ -538,6 +562,7 @@ class DXFile(DXDataObject):
                 i += 1
 
         for chunk_start_pos, chunk_end_pos in chunk_ranges(start_pos, end_pos):
+            url, headers = self.get_download_url(**kwargs)
             headers = copy.copy(headers)
             headers['Range'] = "bytes=" + str(chunk_start_pos) + "-" + str(chunk_end_pos)
             yield dxpy.DXHTTPRequest, [url, ''], {'method': 'GET',
@@ -546,6 +571,7 @@ class DXFile(DXDataObject):
                                                   'jsonify_data': False,
                                                   'prepend_srv': False,
                                                   'always_retry': True,
+                                                  'timeout': FILE_REQUEST_TIMEOUT,
                                                   'decode_response_body': False}
 
     def _next_response_content(self):
@@ -575,14 +601,24 @@ class DXFile(DXDataObject):
            until next seek).
 
         '''
-        if self._response_iterator == None:
-            self._request_iterator = self._generate_read_requests(start_pos=self._pos, **kwargs)
-
         if self._file_length == None:
             desc = self.describe(**kwargs)
             if desc["state"] != "closed":
                 raise DXFileError("Cannot read from file until it is in the closed state")
             self._file_length = int(desc["size"])
+
+        # If running on a worker, wait for the first file download chunk
+        # to come back before issuing any more requests. This ensures
+        # that all subsequent requests can take advantage of caching,
+        # rather than having all of the first DXFILE_HTTP_THREADS
+        # requests simultaneously hit a cold cache. Enforce a minimum
+        # size for this heuristic so we don't incur the overhead for
+        # tiny files (which wouldn't contribute as much to the load
+        # anyway).
+        if self._file_length > 128 * 1024 and self._pos == 0 and dxpy.JOB_ID:
+            get_first_chunk_sequentially = True
+        else:
+            get_first_chunk_sequentially = False
 
         if self._pos == self._file_length:
             return b""
@@ -602,7 +638,22 @@ class DXFile(DXDataObject):
             self._pos += buf_remaining_bytes
             while self._pos < orig_file_pos + length:
                 remaining_len = orig_file_pos + length - self._pos
-                content = self._next_response_content()
+
+                if self._response_iterator is None:
+                    self._request_iterator = self._generate_read_requests(start_pos=self._pos, **kwargs)
+
+                if get_first_chunk_sequentially:
+                    # Make the first chunk request without using the
+                    # usual thread pool and block until it completes. On
+                    # the second chunk, we'll call
+                    # _next_response_content in the alternative block
+                    # below. This starts the threadpool going for the
+                    # second and all subsequent chunks.
+                    callable_, args, kwargs = next(self._request_iterator)
+                    content = callable_(*args, **kwargs)
+                    get_first_chunk_sequentially = False
+                else:
+                    content = self._next_response_content()
 
                 if len(content) < remaining_len:
                     buf.write(content)

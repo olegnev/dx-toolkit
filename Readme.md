@@ -17,7 +17,7 @@ Installing the toolkit
 First, see the section "Build dependencies" below and install the appropriate
 dependencies for your platform.
 
-To build the toolkit, simply run ```make```.
+To build the toolkit, simply run `make`.
 
 Then, initialize your environment by sourcing this file:
 
@@ -25,7 +25,7 @@ Then, initialize your environment by sourcing this file:
 source dx-toolkit/environment
 ```
 
-You will then be able to use ```dx``` (the [DNAnexus Command Line
+You will then be able to use `dx` (the [DNAnexus Command Line
 Client](https://wiki.dnanexus.com/Command-Line-Client/Quickstart)) and other
 utilities, and you will be able to use DNAnexus API bindings in the supported
 languages.
@@ -40,6 +40,9 @@ The Platform SDK contains API language bindings for the following platforms:
 * Perl
 * Java
 * R
+
+Javascript support lives in a separate repo,
+[dnanexus/dx-javascript-toolkit.git](https://github.com/dnanexus/dx-javascript-toolkit).
 
 Build dependencies
 ------------------
@@ -57,29 +60,12 @@ toolkit that doesn't require them.
       g++ cmake libboost1.55-all-dev libcurl4-openssl-dev zlib1g-dev libbz2-dev flex bison \
       autoconf
 
-### Ubuntu 13.10
-
-    sudo apt-get install make python-setuptools python-pip python-virtualenv python-dev \
-      g++ cmake libboost1.54-all-dev libcurl4-openssl-dev zlib1g-dev libbz2-dev flex bison \
-      autoconf
-
-### Ubuntu 13.04
-
-    sudo apt-get install make python-setuptools python-pip python-virtualenv python-dev \
-      g++ cmake libboost1.53-all-dev libcurl4-openssl-dev zlib1g-dev libbz2-dev flex bison \
-      autoconf
-
-### Ubuntu 12.10
-
-    sudo apt-get install make python-setuptools python-pip python-virtualenv python-dev \
-      g++ cmake libboost1.50-all-dev libcurl4-openssl-dev zlib1g-dev libbz2-dev flex bison \
-      autoconf
-
 ### Ubuntu 12.04
 
-    sudo apt-get install make python-setuptools python-pip python-virtualenv python-dev \
+    sudo apt-get install make python-setuptools python-pip python-dev \
       g++ cmake libboost1.48-all-dev libcurl4-openssl-dev zlib1g-dev libbz2-dev flex bison \
       autoconf
+    sudo pip install --upgrade virtualenv
 
 ### Ubuntu 10.04
 
@@ -107,11 +93,11 @@ for one of the following:
   allow the affected modules to be built from source.
 * Install the affected modules (`psutil` and `xattr`) in binary form.
 
-Install boost 1.48 or higher (at least the ```filesystem```,
-```program_options```, ```regex```, ```system``` and ```thread``` libraries).
-This version of boost is not available natively on Ubuntu 10.04. You can use
-the script ```build/lucid_install_boost.sh```, which installs it
-into ```/usr/local/lib```.
+Install boost 1.48 or higher (at least the `filesystem`,
+`program_options`, `regex`, `system` and `thread` libraries). This
+version of boost is not available natively on Ubuntu 10.04. You can use
+the script `build/lucid_install_boost.sh`, which installs it into
+`/usr/local/lib`.
 
 The following additional dependencies are also needed:
 
@@ -138,14 +124,15 @@ versions (abbreviated list):
 
 ### CentOS/RHEL 5.x/6.x
 
-Install Python 2.7. Python 2.7 is not available natively on CentOS 5 or 6. You
-can use the script ```build/centos_install_python27.sh```, which installs it
-into ```/usr/local/bin```.
+Install Python 2.7. Python 2.7 is not available natively on CentOS/RHEL
+5 or 6. You can use the script `build/centos_install_python27.sh`, which
+installs it into `/usr/local/bin`. (Run the script as root.)
 
-Install boost 1.48 or higher (at least the ```thread``` and ```regex```
-libraries). This version of boost is not available natively on CentOS 5 or 6.
-You can use the script ```build/centos_install_boost.sh```, which installs it
-into ```/usr/local/lib```.
+Install boost 1.48 or higher (at least the `thread` and `regex`
+libraries). This version of boost is not available natively on
+CentOS/RHEL 5 or 6. You can use the script
+`build/centos_install_boost.sh`, which installs it into
+`/usr/local/lib`.
 
 Then:
 
@@ -155,9 +142,9 @@ Then:
 
 Notes:
 
-  - On CentOS 5.x, two of the utilities, ```dx-contigset-to-fasta``` and
-    ```dx-reads-validator```, will not function correctly, as some of the
-    library versions are too old.
+  - On CentOS/RHEL 5.x, two of the utilities, `dx-contigset-to-fasta`
+    and `dx-reads-validator`, will not function correctly, as some of
+    the library versions are too old.
 
   - Tested on CentOS 5.4 and CentOS 6.2.
 
@@ -172,8 +159,8 @@ Install `pip` and `virtualenv` for Python:
 
 Install the following packages from source or via [Homebrew](http://mxcl.github.com/homebrew/), [Fink](http://www.finkproject.org/), or [MacPorts](http://www.macports.org/):
 
-* [CMake](http://www.cmake.org/cmake/resources/software.html) (```sudo port install cmake``` or ```brew install cmake```)
-* Boost >= 1.49 (```sudo port install boost``` or ```brew install boost```)
+* [CMake](http://www.cmake.org/cmake/resources/software.html) (`sudo port install cmake` or `brew install cmake`)
+* Boost >= 1.49 (`sudo port install boost` or `brew install boost`)
 * GCC >= 4.6
     * On MacPorts, install and select GCC with:
 
@@ -282,16 +269,6 @@ require 'dxruby'
 
 In Ruby 1.9, `require 'rubygems'` is not necessary.
 
-Virtual filesystem support
---------------------------
-Optional support is available for mounting DNAnexus Platform projects as virtual filesystems. Install the following dependencies:
-
-Platform     | Dependency
--------------|-----------
-Ubuntu 12.04 | `apt-get install libfuse2`
-OS X         | [FUSE for OS X](http://osxfuse.github.io/)
-
-See https://wiki.dnanexus.com/Virtual-Filesystem for more information.
 
 Upload Agent
 ------------
@@ -299,6 +276,8 @@ See the [Upload Agent Readme](https://github.com/dnanexus/dx-toolkit/blob/master
 
 Reporting Bugs
 --------------
-Please use [GitHub](https://github.com/dnanexus/dx-toolkit/issues) to report bugs, post suggestions, or send us pull requests.
+
+Please use [GitHub](https://github.com/dnanexus/dx-toolkit/issues) to
+report bugs, post suggestions, or send us pull requests.
 
 <a href="https://travis-ci.org/dnanexus/dx-toolkit"><img src="https://travis-ci.org/dnanexus/dx-toolkit.svg"></a>

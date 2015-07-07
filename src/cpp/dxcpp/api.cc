@@ -830,6 +830,62 @@ namespace dx {
     return notificationsMarkRead(input_params.toString(), safe_to_retry);
   }
 
+  JSON orgDescribe(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest(std::string("/") + object_id + std::string("/describe"), input_params, safe_to_retry);
+  }
+
+  JSON orgDescribe(const std::string &object_id, const JSON &input_params, const bool safe_to_retry) {
+    return orgDescribe(object_id, input_params.toString(), safe_to_retry);
+  }
+
+  JSON orgFindProjects(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest(std::string("/") + object_id + std::string("/findProjects"), input_params, safe_to_retry);
+  }
+
+  JSON orgFindProjects(const std::string &object_id, const JSON &input_params, const bool safe_to_retry) {
+    return orgFindProjects(object_id, input_params.toString(), safe_to_retry);
+  }
+
+  JSON orgGetMemberAccess(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest(std::string("/") + object_id + std::string("/getMemberAccess"), input_params, safe_to_retry);
+  }
+
+  JSON orgGetMemberAccess(const std::string &object_id, const JSON &input_params, const bool safe_to_retry) {
+    return orgGetMemberAccess(object_id, input_params.toString(), safe_to_retry);
+  }
+
+  JSON orgInvite(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest(std::string("/") + object_id + std::string("/invite"), input_params, safe_to_retry);
+  }
+
+  JSON orgInvite(const std::string &object_id, const JSON &input_params, const bool safe_to_retry) {
+    return orgInvite(object_id, input_params.toString(), safe_to_retry);
+  }
+
+  JSON orgSetMemberAccess(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest(std::string("/") + object_id + std::string("/setMemberAccess"), input_params, safe_to_retry);
+  }
+
+  JSON orgSetMemberAccess(const std::string &object_id, const JSON &input_params, const bool safe_to_retry) {
+    return orgSetMemberAccess(object_id, input_params.toString(), safe_to_retry);
+  }
+
+  JSON orgUpdate(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest(std::string("/") + object_id + std::string("/update"), input_params, safe_to_retry);
+  }
+
+  JSON orgUpdate(const std::string &object_id, const JSON &input_params, const bool safe_to_retry) {
+    return orgUpdate(object_id, input_params.toString(), safe_to_retry);
+  }
+
+  JSON orgNew(const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest("/org/new", input_params, safe_to_retry);
+  }
+
+  JSON orgNew(const JSON &input_params, const bool safe_to_retry) {
+    return orgNew(input_params.toString(), safe_to_retry);
+  }
+
   JSON projectAddTags(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {
     return DXHTTPRequest(std::string("/") + object_id + std::string("/addTags"), input_params, safe_to_retry);
   }
@@ -964,6 +1020,14 @@ namespace dx {
 
   JSON projectUpdate(const std::string &object_id, const JSON &input_params, const bool safe_to_retry) {
     return projectUpdate(object_id, input_params.toString(), safe_to_retry);
+  }
+
+  JSON projectUpdateSponsorship(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest(std::string("/") + object_id + std::string("/updateSponsorship"), input_params, safe_to_retry);
+  }
+
+  JSON projectUpdateSponsorship(const std::string &object_id, const JSON &input_params, const bool safe_to_retry) {
+    return projectUpdateSponsorship(object_id, input_params.toString(), safe_to_retry);
   }
 
   JSON projectNew(const std::string &input_params, const bool safe_to_retry) {
@@ -1102,6 +1166,14 @@ namespace dx {
     return systemFindDataObjects(input_params.toString(), safe_to_retry);
   }
 
+  JSON systemResolveDataObjects(const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest("/system/resolveDataObjects", input_params, safe_to_retry);
+  }
+
+  JSON systemResolveDataObjects(const JSON &input_params, const bool safe_to_retry) {
+    return systemResolveDataObjects(input_params.toString(), safe_to_retry);
+  }
+
   JSON systemFindExecutions(const std::string &input_params, const bool safe_to_retry) {
     return DXHTTPRequest("/system/findExecutions", input_params, safe_to_retry);
   }
@@ -1150,6 +1222,14 @@ namespace dx {
     return systemFindProjectMembers(input_params.toString(), safe_to_retry);
   }
 
+  JSON systemGlobalSearch(const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest("/system/globalSearch", input_params, safe_to_retry);
+  }
+
+  JSON systemGlobalSearch(const JSON &input_params, const bool safe_to_retry) {
+    return systemGlobalSearch(input_params.toString(), safe_to_retry);
+  }
+
   JSON systemGreet(const std::string &input_params, const bool safe_to_retry) {
     return DXHTTPRequest("/system/greet", input_params, safe_to_retry);
   }
@@ -1164,6 +1244,14 @@ namespace dx {
 
   JSON systemShortenURL(const JSON &input_params, const bool safe_to_retry) {
     return systemShortenURL(input_params.toString(), safe_to_retry);
+  }
+
+  JSON systemWhoami(const std::string &input_params, const bool safe_to_retry) {
+    return DXHTTPRequest("/system/whoami", input_params, safe_to_retry);
+  }
+
+  JSON systemWhoami(const JSON &input_params, const bool safe_to_retry) {
+    return systemWhoami(input_params.toString(), safe_to_retry);
   }
 
   JSON userDescribe(const std::string &object_id, const std::string &input_params, const bool safe_to_retry) {

@@ -17,7 +17,7 @@
 #   under the License.
 
 import os, unittest, subprocess
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, mkdtemp
 
 import dxpy
 import dxpy_testutil as testutil
@@ -136,7 +136,7 @@ class TestDXTabCompletion(unittest.TestCase):
 
     def test_subcommand_completion(self):
         self.assert_completions("dx find ", ["apps", "data", "jobs", "projects"])
-        self.assert_completions("dx new   ", ["project", "record", "gtable"])
+        self.assert_completions("dx new   ", ["project", "record", "workflow"])
 
     def test_option_completion(self):
         self.assert_completions("dx -", ["-h", "--help", "--env-help"])
@@ -193,9 +193,8 @@ class TestDXTabCompletion(unittest.TestCase):
     @unittest.skipUnless(testutil.TEST_ENV,
                          'skipping test that would clobber your local environment')
     def test_completion_with_no_current_project(self):
-        from dxpy.utils.env import write_env_var
-        write_env_var('DX_PROJECT_CONTEXT_ID', None)
-        del os.environ['DX_PROJECT_CONTEXT_ID']
+        del dxpy.config['DX_PROJECT_CONTEXT_ID']
+        dxpy.config.save()
 
         self.assert_completion("dx select ", "tab-completion project\\:")
         self.assert_completion("dx cd ta", "tab-completion project\\:")
@@ -203,6 +202,17 @@ class TestDXTabCompletion(unittest.TestCase):
     def test_local_file_completion(self):
         with NamedTemporaryFile(dir=os.getcwd()) as local_file:
             self.assert_completion("dx upload ", os.path.basename(local_file.name))
+
+    def test_local_dir_completion(self):
+        old_cwd = os.getcwd()
+        tempdir = mkdtemp()
+        os.chdir(tempdir)
+        try:
+            os.makedirs("subdir/subsubdir")
+            self.assert_completion("dx upload ", "subdir/")
+            self.assert_completion("dx build ", "subdir/")
+        finally:
+            os.chdir(old_cwd)
 
     def test_noninterference_of_local_files(self):
         self.assert_no_completions("dx ls ")

@@ -22,7 +22,7 @@ from __future__ import (print_function, unicode_literals)
 
 # TODO: refactor all dx run helper functions here
 
-import os, sys, json, collections, pipes, shlex
+import os, sys, json, collections, pipes
 
 import dxpy
 from . import INTERACTIVE_CLI
@@ -32,8 +32,7 @@ from ..utils.describe import (get_find_executions_string, get_ls_l_desc, parse_t
 from ..utils.resolver import (get_first_pos_of_char, is_hashid, is_job_id, is_localjob_id, paginate_and_pick, pick,
                               resolve_existing_path, split_unescaped)
 from ..utils import OrderedDefaultdict
-from ..compat import input, str
-from ..utils.env import get_env_var
+from ..compat import input, str, shlex
 
 ####################
 # -i Input Parsing #
@@ -61,7 +60,7 @@ def parse_obj(string, klass):
         return {'$dnanexus_link': {"project": entity_result['describe']['project'],
                                    "id": entity_result['id']}}
 
-dx_data_classes = ['record', 'gtable', 'file', 'applet', 'table']
+dx_data_classes = ['record', 'gtable', 'file', 'applet', 'workflow']
 
 parse_input = {'boolean': parse_bool,
                'string': (lambda string: string),
@@ -72,9 +71,9 @@ parse_input = {'boolean': parse_bool,
                'gtable': (lambda string: parse_obj(string, 'gtable')),
                'file': (lambda string: parse_obj(string, 'file')),
                'applet': (lambda string: parse_obj(string, 'applet')),
+               'workflow': (lambda string: parse_obj(string, 'workflow')),
                'job': (lambda string: {'$dnanexus_link': string}),
-               'app': (lambda string: {'$dnanexus_link': string}),
-               'table': (lambda string: parse_obj(string, 'table'))}
+               'app': (lambda string: {'$dnanexus_link': string})}
 
 def _construct_jbor(job_id, field_name_and_maybe_index):
     '''
@@ -123,7 +122,7 @@ def interactive_help(in_class, param_desc, prompt):
             except:
                 pass
             if proj_name is not None:
-                print('Your current working directory is ' + proj_name + ':' + get_env_var('DX_CLI_WD', u'/'))
+                print('Your current working directory is ' + proj_name + ':' + dxpy.config.get('DX_CLI_WD', '/'))
         while True:
             print('Pick an option to find input data:')
             try:
@@ -137,7 +136,7 @@ def interactive_help(in_class, param_desc, prompt):
             if opt_num == 0:
                 query_project = dxpy.WORKSPACE_ID
             elif opt_num == 1:
-                query_project = dxpy.find_one_project(name="Reference Genomes", public=True, level="VIEW")['id']
+                query_project = dxpy.find_one_project(name="Reference Genome Files", public=True, billed_to="org-dnanexus", level="VIEW")['id']
             elif opt_num == 2:
                 project_generator = dxpy.find_projects(level='VIEW', describe=True, explicit_perms=True)
                 print('\nProjects to choose from:')
@@ -402,7 +401,7 @@ def get_input_single(param_desc):
                            + BOLD() + param_desc['name'] + ENDC() + ' is not in the list of choices for that input'))
             return value
     except EOFError:
-        raise Exception('')
+        raise DXCLIError('Unexpected end of input')
 
 def get_optional_input_str(param_desc):
     return param_desc.get('label', param_desc['name']) + ' (' + param_desc['name'] + ')'
@@ -532,7 +531,7 @@ class ExecutableInputs(object):
         except:
             pass
 
-    def prompt_for_missing(self):
+    def prompt_for_missing(self, confirm=True):
         # No-op if there is no input spec
         if self.input_spec is None:
             return
@@ -547,7 +546,7 @@ class ExecutableInputs(object):
                 if len(self.inputs) == 0:
                     print('Entering interactive mode for input selection.')
                 self.inputs[i] = self.prompt_for_input(i)
-        if no_prior_inputs and len(self.optional_inputs) > 0:
+        if no_prior_inputs and len(self.optional_inputs) > 0 and confirm:
             self.prompt_for_optional_inputs()
 
         self.uninit_completer()
@@ -632,7 +631,7 @@ class ExecutableInputs(object):
         # recognizing when not all inputs haven't been bound
         if require_all_inputs:
             if INTERACTIVE_CLI:
-                self.prompt_for_missing()
+                self.prompt_for_missing(getattr(args, 'confirm', True))
             else:
                 missing_required_inputs = set(self.required_inputs) - set(self.inputs.keys())
                 if missing_required_inputs:

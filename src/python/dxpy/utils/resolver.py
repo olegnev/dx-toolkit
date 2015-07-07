@@ -31,7 +31,6 @@ import dxpy
 from .describe import get_ls_l_desc
 from ..exceptions import DXError
 from ..compat import str, input
-from ..utils.env import get_env_var
 from ..cli import INTERACTIVE_CLI
 
 def pick(choices, default=None, str_choices=None, prompt=None, allow_mult=False, more_choices=False):
@@ -143,8 +142,8 @@ class ResolutionError(DXError):
     def __str__(self):
         return self.msg
 
-data_obj_pattern = re.compile('^(record|table|gtable|applet|file|workflow)-[0-9A-Za-z]{24}$')
-hash_pattern = re.compile('^(record|table|gtable|app|applet|workflow|job|analysis|project|container|file)-[0-9A-Za-z]{24}$')
+data_obj_pattern = re.compile('^(record|gtable|applet|file|workflow)-[0-9A-Za-z]{24}$')
+hash_pattern = re.compile('^(record|gtable|app|applet|workflow|job|analysis|project|container|file)-[0-9A-Za-z]{24}$')
 nohash_pattern = re.compile('^(user|org|app|team)-')
 
 def is_hashid(string):
@@ -466,7 +465,7 @@ def resolve_path(path, expected=None, expected_classes=None, multi_projects=Fals
         project = dxpy.WORKSPACE_ID
         if expected == 'folder' and project is None:
             raise ResolutionError('a project context was expected for a path, but a current project is not set, nor was one provided in the path (preceding a colon) in "' + path + '"')
-        wd = get_env_var('DX_CLI_WD', u'/')
+        wd = dxpy.config.get('DX_CLI_WD', u'/')
 
     # Determine folderpath and entity_name if necessary
     if folderpath is None:
@@ -565,12 +564,11 @@ def resolve_existing_path(path, expected=None, ask_to_resolve=True, expected_cla
     NOTE: if expected_classes is provided and conflicts with the class
     of the hash ID, it will return None for all fields.
     '''
-
     project, folderpath, entity_name = resolve_path(path, expected, allow_empty_string=allow_empty_string)
 
     if entity_name is None:
         # Definitely a folder (or project)
-        # FIXME? Should I check that the folder exists if expected="folder"?
+        # TODO: find a good way to check if folder exists and expected=folder
         return project, folderpath, entity_name
     elif is_hashid(entity_name):
         found_valid_class = True
@@ -612,6 +610,10 @@ def resolve_existing_path(path, expected=None, ask_to_resolve=True, expected_cla
         if is_job_id(project):
             # The following will raise if no results could be found
             results = resolve_job_ref(project, entity_name, describe=describe)
+
+            # If results able to resolve without error, project will be
+            # incorporated into results assuming results were found.
+            project = None
         else:
             try:
                 results = list(dxpy.find_data_objects(project=project,
@@ -626,7 +628,6 @@ def resolve_existing_path(path, expected=None, ask_to_resolve=True, expected_cla
         if len(results) == 0:
             # Could not find it as a data object.  If anything, it's a
             # folder.
-
             if '/' in entity_name:
                 # Then there's no way it's supposed to be a folder
                 raise ResolutionError(msg)
@@ -635,6 +636,11 @@ def resolve_existing_path(path, expected=None, ask_to_resolve=True, expected_cla
             # error-checking for later.  Note that folderpath does
             possible_folder = folderpath + '/' + entity_name
             possible_folder, _skip = clean_folder_path(possible_folder, 'folder')
+
+            # Check that the folder specified actually exists, and raise error if it doesn't
+            if not check_folder_exists(project, folderpath, entity_name):
+                raise ResolutionError('Unable to resolve "' + entity_name +
+                                      '" to a data object or folder name in \'' + folderpath + "'")
             return project, possible_folder, None
 
         # Caller wants ALL results; just return the whole thing
@@ -656,6 +662,40 @@ def resolve_existing_path(path, expected=None, ask_to_resolve=True, expected_cla
                 raise ResolutionError('The given path "' + path + '" resolves to ' + str(len(results)) + ' data objects')
         elif len(results) == 1:
             return project, None, ([results[0]] if allow_mult else results[0])
+
+
+def check_folder_exists(project, path, folder_name):
+    '''
+    :param project: project id
+    :type project: string
+    :param path: path to where we should look for the folder in question
+    :type path: string
+    :param folder_name: name of the folder in question
+    :type folder_name: string
+    :returns: A boolean True or False whether the folder exists at the specified path
+    :type: boolean
+    :raises: :exc:'ResolutionError' if dxpy.api.container_list_folder raises an exception
+
+    This function returns a boolean value that indicates whether a folder of the
+    specified name exists at the specified path
+
+    Note: this function will NOT work on the root folder case, i.e. '/'
+    '''
+    if folder_name is None or path is None:
+        return False
+    try:
+        folder_list = dxpy.api.container_list_folder(project, {"folder": path, "only": "folders"})
+    except dxpy.exceptions.DXAPIError as e:
+        if e.name == 'ResourceNotFound':
+            raise ResolutionError(str(e.msg))
+        else:
+            raise e
+    target_folder = path + '/' + folder_name
+    # sanitize input if necessary
+    target_folder, _skip = clean_folder_path(target_folder, 'folder')
+
+    # Check that folder name exists in return from list folder API call
+    return target_folder in folder_list['folders']
 
 def get_app_from_path(path):
     '''

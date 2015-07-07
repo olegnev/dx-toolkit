@@ -108,11 +108,11 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
         ticks = int(round((bytes_downloaded / float(effective_file_size)) * num_ticks))
         percent = int(round((bytes_downloaded / float(effective_file_size)) * 100))
 
-        fmt = "[{done}{pending}] Downloaded {done_bytes} of {total_bytes} bytes ({percent}%) {name}"
+        fmt = "[{done}{pending}] Downloaded {done_bytes:,}{remaining} bytes ({percent}%) {name}"
         sys.stderr.write(fmt.format(done=('=' * (ticks - 1) + '>') if ticks > 0 else '',
                                     pending=' ' * (num_ticks - ticks),
                                     done_bytes=bytes_downloaded,
-                                    total_bytes=file_size if file_size else "",
+                                    remaining=' of {size:,}'.format(size=file_size) if file_size else "",
                                     percent=percent,
                                     name=filename))
         sys.stderr.flush()
@@ -141,6 +141,26 @@ def download_dxfile(dxid, filename, chunksize=dxfile.DEFAULT_BUFFER_SIZE, append
                 break
 
             fd.write(file_content)
+
+def _get_buffer_size_for_file(file_size, file_is_mmapd=False):
+    """Returns an upload buffer size that is appropriate to use for a file
+    of size file_size. If file_is_mmapd is True, the size is further
+    constrained to be suitable for passing to mmap.
+
+    """
+    # Raise buffer size (for files exceeding DEFAULT_BUFFER_SIZE * 10k
+    # bytes) in order to prevent us from exceeding 10k parts limit.
+    min_buffer_size = int(math.ceil(float(file_size) / 10000))
+    buffer_size = max(dxfile.DEFAULT_BUFFER_SIZE, min_buffer_size)
+    if file_size >= 0 and file_is_mmapd:
+        # For mmap'd uploads the buffer size additionally must be a
+        # multiple of the ALLOCATIONGRANULARITY.
+        buffer_size = int(math.ceil(float(buffer_size) / mmap.ALLOCATIONGRANULARITY)) * mmap.ALLOCATIONGRANULARITY
+    if buffer_size * 10000 < file_size:
+        raise AssertionError('part size is not large enough to complete upload')
+    if file_is_mmapd and buffer_size % mmap.ALLOCATIONGRANULARITY != 0:
+        raise AssertionError('part size will not be accepted by mmap')
+    return buffer_size
 
 def upload_local_file(filename=None, file=None, media_type=None, keep_open=False,
                       wait_on_close=False, use_existing_dxfile=None, show_progress=False, **kwargs):
@@ -186,14 +206,7 @@ def upload_local_file(filename=None, file=None, media_type=None, keep_open=False
         file_size = os.fstat(fd.fileno()).st_size
     except:
         file_size = 0
-    # Raise buffer size (for files exceeding DEFAULT_BUFFER_SIZE * 10k
-    # bytes) in order to prevent us from exceeding 10k parts limit.
-    min_buffer_size = file_size / 10000 + 1
-    if file_size >= 0 and hasattr(fd, "fileno"):
-        # For mmap'd uploads the buffer size additionally must be a
-        # multiple of the ALLOCATIONGRANULARITY.
-        min_buffer_size = int(math.ceil(min_buffer_size / mmap.ALLOCATIONGRANULARITY)) * mmap.ALLOCATIONGRANULARITY
-    buffer_size = max(dxfile.DEFAULT_BUFFER_SIZE, min_buffer_size)
+    buffer_size = _get_buffer_size_for_file(file_size, file_is_mmapd=hasattr(fd, "fileno"))
 
     if use_existing_dxfile:
         handler = use_existing_dxfile
@@ -255,7 +268,7 @@ def upload_local_file(filename=None, file=None, media_type=None, keep_open=False
             ticks = int(round((handler._num_bytes_transmitted / float(file_size)) * num_ticks))
             percent = int(round((handler._num_bytes_transmitted / float(file_size)) * 100))
 
-            fmt = "[{done}{pending}] Uploaded ({done_bytes} of {total} bytes) {percent}% {name}"
+            fmt = "[{done}{pending}] Uploaded {done_bytes:,} of {total:,} bytes ({percent}%) {name}"
             sys.stderr.write(fmt.format(done='=' * (ticks - 1) + '>' if ticks > 0 else '',
                                         pending=' ' * (num_ticks - ticks),
                                         done_bytes=handler._num_bytes_transmitted,

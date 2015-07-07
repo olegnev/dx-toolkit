@@ -373,7 +373,7 @@
         "containerRemoveFolder(req, objectId)",
         {
             "objectMethod": true,
-            "retryable": true,
+            "retryable": false,
             "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Folders-and-Deletion#API-method%3A-%2Fclass-xxxx%2FremoveFolder"
         }
     ],
@@ -382,7 +382,7 @@
         "containerRemoveObjects(req, objectId)",
         {
             "objectMethod": true,
-            "retryable": true,
+            "retryable": false,
             "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Folders-and-Deletion#API-method%3A-%2Fclass-xxxx%2FremoveObjects"
         }
     ],
@@ -756,6 +756,69 @@
         }
     ],
     [
+        "/org-xxxx/describe",
+        "orgDescribe(req, objectId)",
+        {
+            "objectMethod": true,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2Fdescribe"
+        }
+    ],
+    [
+        "/org-xxxx/findProjects",
+        "orgFindProjects(req, objectId)",
+        {
+            "objectMethod": true,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2FfindProjects"
+        }
+    ],
+    [
+        "/org-xxxx/getMemberAccess",
+        "orgGetMemberAccess(req, objectId)",
+        {
+            "objectMethod": true,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2FgetMemberAccess"
+        }
+    ],
+    [
+        "/org-xxxx/invite",
+        "orgInvite(req, objectId)",
+        {
+            "objectMethod": true,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2Finvite"
+        }
+    ],
+    [
+        "/org-xxxx/setMemberAccess",
+        "orgSetMemberAccess(req, objectId)",
+        {
+            "objectMethod": true,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2FsetMemberAccess"
+        }
+    ],
+    [
+        "/org-xxxx/update",
+        "orgUpdate(req, objectId)",
+        {
+            "objectMethod": true,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg-xxxx%2Fupdate"
+        }
+    ],
+    [
+        "/org/new",
+        "orgNew(req)",
+        {
+            "objectMethod": false,
+            "retryable": false,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Organizations#API-method%3A-%2Forg%2Fnew"
+        }
+    ],
+    [
         "/project-xxxx/addTags",
         "projectAddTags(req, objectId)",
         {
@@ -850,7 +913,7 @@
         "projectRemoveFolder(req, objectId)",
         {
             "objectMethod": true,
-            "retryable": true,
+            "retryable": false,
             "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Folders-and-Deletion#API-method%3A-%2Fclass-xxxx%2FremoveFolder"
         }
     ],
@@ -859,7 +922,7 @@
         "projectRemoveObjects(req, objectId)",
         {
             "objectMethod": true,
-            "retryable": true,
+            "retryable": false,
             "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Folders-and-Deletion#API-method%3A-%2Fclass-xxxx%2FremoveObjects"
         }
     ],
@@ -906,6 +969,15 @@
             "objectMethod": true,
             "retryable": true,
             "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2Fupdate"
+        }
+    ],
+    [
+        "/project-xxxx/updateSponsorship",
+        "projectUpdateSponsorship(req, objectId)",
+        {
+            "objectMethod": true,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Projects#API-method%3A-%2Fproject-xxxx%2FupdateSponsorship"
         }
     ],
     [
@@ -1062,6 +1134,15 @@
         }
     ],
     [
+        "/system/resolveDataObjects",
+        "systemResolveDataObjects(req)",
+        {
+            "objectMethod": false,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/System-Methods#API-method:-/system/resolveDataObjects"
+        }
+    ],
+    [
         "/system/findExecutions",
         "systemFindExecutions(req)",
         {
@@ -1116,6 +1197,15 @@
         }
     ],
     [
+        "/system/globalSearch",
+        "systemGlobalSearch(req)",
+        {
+            "objectMethod": false,
+            "retryable": true,
+            "wikiLink": "https://wiki.dnanexus.com/API-Specification-v1.0.0/Search#API-method:-/system/globalSearch"
+        }
+    ],
+    [
         "/system/greet",
         "systemGreet(req)",
         {
@@ -1127,6 +1217,15 @@
     [
         "/system/shortenURL",
         "systemShortenURL(req)",
+        {
+            "objectMethod": false,
+            "retryable": true,
+            "wikiLink": null
+        }
+    ],
+    [
+        "/system/whoami",
+        "systemWhoami(req)",
         {
             "objectMethod": false,
             "retryable": true,

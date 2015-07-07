@@ -21,7 +21,7 @@ Utilities for client-side usage of the streaming log API
 
 from __future__ import print_function, unicode_literals
 
-import json, logging
+import json, logging, time
 
 #from ws4py.client.threadedclient import WebSocketClient
 from ws4py.client import WebSocketBaseClient
@@ -30,13 +30,14 @@ import dxpy
 from .describe import get_find_executions_string
 from ..exceptions import err_exit
 
-logging.getLogger('ws4py').setLevel(logging.ERROR)
+logger = logging.getLogger('ws4py')
+logger.setLevel(logging.WARN)
 
 class DXJobLogStreamingException(Exception):
     pass
 
 class DXJobLogStreamClient(WebSocketBaseClient):
-    def __init__(self, job_id, input_params={}, msg_output_format="{job} {level} {msg}", msg_callback=None,
+    def __init__(self, job_id, input_params=None, msg_output_format="{job} {level} {msg}", msg_callback=None,
                  print_job_info=True):
         self.job_id = job_id
         self.seen_jobs = {}
@@ -46,11 +47,11 @@ class DXJobLogStreamClient(WebSocketBaseClient):
         self.print_job_info = print_job_info
         self.closed_code, self.closed_reason = None, None
         ws_proto = 'wss' if dxpy.APISERVER_PROTOCOL == 'https' else 'ws'
-        url = "{protocol}://{host}:{port}/{job_id}/getLog/websocket".format(protocol=ws_proto,
-                                                                            host=dxpy.APISERVER_HOST,
-                                                                            port=dxpy.APISERVER_PORT,
-                                                                            job_id=job_id)
-        WebSocketBaseClient.__init__(self, url, protocols=None, extensions=None)
+        self.url = "{protocol}://{host}:{port}/{job_id}/getLog/websocket".format(protocol=ws_proto,
+                                                                                 host=dxpy.APISERVER_HOST,
+                                                                                 port=dxpy.APISERVER_PORT,
+                                                                                 job_id=job_id)
+        WebSocketBaseClient.__init__(self, self.url, protocols=None, extensions=None)
 
     def handshake_ok(self):
         self.run()
@@ -58,8 +59,34 @@ class DXJobLogStreamClient(WebSocketBaseClient):
     def opened(self):
         args = {"access_token": dxpy.SECURITY_CONTEXT['auth_token'],
                 "token_type": dxpy.SECURITY_CONTEXT['auth_token_type']}
-        args.update(self.input_params)
+        if self.input_params:
+            args.update(self.input_params)
         self.send(json.dumps(args))
+
+    def reconnect(self):
+        # Instead of trying to reconnect in a retry loop with backoff, run an API call that will do the same
+        # and block while it retries.
+        time.sleep(1)
+        dxpy.describe(self.job_id)
+        WebSocketBaseClient.__init__(self, self.url, protocols=None, extensions=None)
+        self.connect()
+
+    def terminate(self):
+        if self.stream and self.stream.closing and self.stream.closing.code == 1001 \
+           and self.stream.closing.reason == "Server restart, please reconnect later":
+            # Clean up state (this is a copy of WebSocket.terminate(), minus the part that calls closed())
+            try:
+                self.close_connection()
+                self.stream._cleanup()
+            except:
+                pass
+            self.stream = None
+            self.environ = None
+
+            logger.warn("Server restart, reconnecting...")
+            self.reconnect()
+        else:
+            WebSocketBaseClient.terminate(self)
 
     def closed(self, code, reason):
         self.closed_code, self.closed_reason = code, reason

@@ -125,13 +125,17 @@ environment variables:
 
 from __future__ import (print_function, unicode_literals)
 
-import os, sys, json, time, logging, platform, collections
-from .packages import requests
-from .packages.requests.exceptions import ConnectionError, HTTPError, Timeout
-from .packages.requests.auth import AuthBase
+import os, sys, json, time, logging, platform, collections, ssl, traceback
+import errno
+import requests
+import socket
+
+from requests.exceptions import ConnectionError, HTTPError, Timeout
+from requests.auth import AuthBase
 from .compat import USING_PYTHON2, expanduser
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 logging.getLogger('dxpy.packages.requests.packages.urllib3.connectionpool').setLevel(logging.ERROR)
 
 from . import exceptions
@@ -162,7 +166,11 @@ APISERVER_PORT = DEFAULT_APISERVER_PORT
 SESSION_HANDLERS = collections.defaultdict(requests.session)
 
 DEFAULT_RETRIES = 6
-_DEBUG, _UPGRADE_NOTIFY = False, True
+DEFAULT_TIMEOUT = 600
+DEFAULT_RETRY_AFTER_503_INTERVAL = 60
+
+_DEBUG = 0  # debug verbosity level
+_UPGRADE_NOTIFY = True
 
 USER_AGENT = "{name}/{version} ({platform})".format(name=__name__,
                                                     version=TOOLKIT_VERSION,
@@ -170,12 +178,92 @@ USER_AGENT = "{name}/{version} ({platform})".format(name=__name__,
 
 _expected_exceptions = exceptions.network_exceptions + (exceptions.DXAPIError, )
 
-def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True, timeout=600,
+def _process_method_url_headers(method, url, headers):
+    if callable(url):
+        _url, _headers = url()
+        _headers.update(headers)
+    else:
+        _url, _headers = url, headers
+    # When *data* is bytes but *headers* contains Unicode text, httplib tries to concatenate them and decode
+    # *data*, which should not be done. Also, per HTTP/1.1 headers must be encoded with MIME, but we'll
+    # disregard that here, and just encode them with the Python default (ascii) and fail for any non-ascii
+    # content. See http://tools.ietf.org/html/rfc3987 for a discussion of encoding URLs.
+    # TODO: ascertain whether this is a problem in Python 3/make test
+    if USING_PYTHON2:
+        return method.encode(), _url.encode('utf-8'), {k.encode(): v.encode() for k, v in _headers.items()}
+    else:
+        return method, _url, _headers
+
+
+# When any of the following errors are indicated, we are sure that the
+# server never received our request and therefore the request can be
+# retried (even if the request is not idempotent).
+_RETRYABLE_SOCKET_ERRORS = {
+    errno.ENETDOWN,     # The network was down
+    errno.ENETUNREACH,  # The subnet containing the remote host was unreachable
+    errno.ECONNREFUSED  # A remote host refused to allow the network connection
+}
+
+
+def _is_retryable_exception(e):
+    """Returns True if the exception is always safe to retry.
+
+    This is True if the client was never able to establish a connection
+    to the server (for example, name resolution failed or the connection
+    could otherwise not be initialized).
+
+    Conservatively, if we can't tell whether a network connection could
+    have been established, we return False.
+
+    """
+    try:
+        if isinstance(e, ConnectionError):
+            # Unfortunately requests doesn't seem to provide a sensible
+            # API to retrieve the cause
+            cause = e.args[0].args[1]
+            if isinstance(cause, (socket.gaierror, socket.herror)):
+                return True
+            if isinstance(cause, socket.error) and cause.errno in _RETRYABLE_SOCKET_ERRORS:
+                return True
+        return False
+    except (AttributeError, TypeError, IndexError):
+        return False
+
+
+def _extract_msg_from_last_exception():
+    ''' Extract a useful error message from the last thrown exception '''
+    last_exc_type, last_error, last_traceback = sys.exc_info()
+    if isinstance(last_error, exceptions.DXAPIError):
+        # Using the same code path as below would not
+        # produce a useful message when the error contains a
+        # 'details' hash (which would have a last line of
+        # '}')
+        return last_error.error_message()
+    else:
+        return traceback.format_exc().splitlines()[-1].strip()
+
+
+def _extract_retry_after_timeout(response):
+    '''Returns the time in seconds that the server is asking us to
+    wait. The information is deduced from the server http response.'''
+    try:
+        seconds_to_wait = int(response.headers.get('retry-after', DEFAULT_RETRY_AFTER_503_INTERVAL))
+    except ValueError:
+        # retry-after could be formatted as absolute time
+        # instead of seconds to wait. We don't know how to
+        # parse that, but the apiserver doesn't generate
+        # such responses anyway.
+        seconds_to_wait = DEFAULT_RETRY_AFTER_503_INTERVAL
+    return max(1, seconds_to_wait)
+
+
+def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True,
+                  timeout=DEFAULT_TIMEOUT,
                   use_compression=None, jsonify_data=True, want_full_response=False,
                   decode_response_body=True, prepend_srv=True, session_handler=None,
                   max_retries=DEFAULT_RETRIES, always_retry=False, **kwargs):
     '''
-    :param resource: API server route, e.g. "/record/new"
+    :param resource: API server route, e.g. "/record/new". If *prepend_srv* is False, a fully qualified URL is expected. If this argument is a callable, it will be called just before each request attempt, and expected to return a tuple (URL, headers). Headers returned by the callback are updated with *headers* (including headers set by this method).
     :type resource: string
     :param data: Content of the request body
     :type data: list or dict, if *jsonify_data* is True; or string or file-like object, otherwise
@@ -232,9 +320,9 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True, timeou
 
     url = APISERVER + resource if prepend_srv else resource
     method = method.upper() # Convert method name to uppercase, to ease string comparisons later
-    if _DEBUG == '2':
+    if _DEBUG >= 2:
         print(method, url, "=>\n" + json.dumps(data, indent=2), file=sys.stderr)
-    elif _DEBUG:
+    elif _DEBUG > 0:
         from repr import Repr
         print(method, url, "=>", Repr().repr(data), file=sys.stderr)
 
@@ -245,6 +333,8 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True, timeou
         kwargs['verify'] = os.environ['DX_CA_CERT']
         if os.environ['DX_CA_CERT'] == 'NOVERIFY':
             kwargs['verify'] = False
+            from requests.packages import urllib3
+            urllib3.disable_warnings()
 
     if jsonify_data:
         data = json.dumps(data)
@@ -259,16 +349,6 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True, timeou
             raise exceptions.DXError("Snappy compression requested, but the snappy module is unavailable")
         headers['accept-encoding'] = 'snappy'
 
-    # When *data* is bytes but *headers* contains Unicode text, httplib tries to concatenate them and decode *data*,
-    # which should not be done. Also, per HTTP/1.1 headers must be encoded with MIME, but we'll disregard that here, and
-    # just encode them with the Python default (ascii) and fail for any non-ascii content.
-    # See http://tools.ietf.org/html/rfc3987 for a discussion of encoding URLs.
-    # TODO: ascertain whether this is a problem in Python 3/make test
-    if USING_PYTHON2:
-        headers = {k.encode(): v.encode() for k, v in headers.items()}
-        url = url.encode('utf-8')
-        method = method.encode()
-
     # If the input is a buffer, its data gets consumed by
     # requests.request (moving the read position). Record the initial
     # buffer position so that we can return to it if the request fails
@@ -277,13 +357,14 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True, timeou
     if hasattr(data, 'seek') and hasattr(data, 'tell'):
         rewind_input_buffer_offset = data.tell()
 
-    last_error = None
-    for retry in range(max_retries + 1):
-        streaming_response_truncated = False
+    try_index = 0
+    while True:
+        success, streaming_response_truncated = True, False
         response = None
         try:
-            response = session_handler.request(method, url, data=data, headers=headers, timeout=timeout, auth=auth,
-                                               **kwargs)
+            _method, _url, _headers = _process_method_url_headers(method, url, headers)
+            response = session_handler.request(_method, _url, headers=_headers, data=data,
+                                               timeout=timeout, auth=auth, **kwargs)
 
             if _UPGRADE_NOTIFY and response.headers.get('x-upgrade-info', '').startswith('A recommended update is available') and not os.environ.has_key('_ARGCOMPLETE'):
                 logger.info(response.headers['x-upgrade-info'])
@@ -326,13 +407,12 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True, timeou
                     if response.headers.get('content-type', '').startswith('application/json'):
                         try:
                             content = json.loads(content)
-                            if _DEBUG == '2':
+                            if _DEBUG >= 2:
                                 t = int(response.elapsed.total_seconds()*1000)
                                 print(method, url, "<=", response.status_code, "(%dms)"%t, "\n" + json.dumps(content, indent=2), file=sys.stderr)
-                            elif _DEBUG:
+                            elif _DEBUG > 0:
                                 t = int(response.elapsed.total_seconds()*1000)
                                 print(method, url, "<=", response.status_code, "(%dms)"%t, Repr().repr(content), file=sys.stderr)
-
                             return content
                         except ValueError:
                             # If a streaming API call (no content-length
@@ -344,47 +424,59 @@ def DXHTTPRequest(resource, data, method='POST', headers=None, auth=True, timeou
                             streaming_response_truncated = 'content-length' not in response.headers
                             raise HTTPError("Invalid JSON received from server")
                 return content
-        except _expected_exceptions as e:
-            last_error = e
+            raise AssertionError('Should never reach this line: expected a result to have been returned by now')
+        except Exception as e:
+            success = False
+            exception_msg = _extract_msg_from_last_exception()
+            if isinstance(e, _expected_exceptions):
+                if response is not None and response.status_code == 503:
+                    seconds_to_wait = _extract_retry_after_timeout(response)
+                    logger.warn("%s %s: %s. Waiting %d seconds due to server unavailability...",
+                                method, url, exception_msg, seconds_to_wait)
+                    time.sleep(seconds_to_wait)
+                    # Note, we escape the "except" block here without
+                    # incrementing try_index because 503 responses with
+                    # Retry-After should not count against the number of
+                    # permitted retries.
+                    continue
 
-            if response is not None and response.status_code == 503 and 'retry-after' in response.headers:
-                try:
-                    seconds_to_wait = int(response.headers['retry-after'])
-                except ValueError:
-                    # retry-after could be formatted as absolute time
-                    # instead of seconds to wait. We don't know how to
-                    # parse that, but the apiserver doesn't generate
-                    # such responses anyway.
-                    seconds_to_wait = 60.0
-                logger.warn("%s %s: %s. Waiting %d seconds due to server unavailability..."
-                            % (method, url, str(e), seconds_to_wait))
-                time.sleep(seconds_to_wait)
-                continue
-
-            # TODO: if the socket was dropped mid-request,
-            # ConnectionError or httplib.IncompleteRead is raised, but
-            # non-idempotent requests can be unsafe to retry. We should
-            # distinguish between connection initiation errors and
-            # dropped socket errors. Currently the former are not
-            # retried even if it might be safe to do so.
-            if retry < max_retries:
-                if response is None or isinstance(e, exceptions.ContentLengthError) or streaming_response_truncated:
-                    ok_to_retry = always_retry or (method == 'GET')
-                else:
-                    ok_to_retry = 500 <= response.status_code < 600
+                # Total number of allowed tries is the initial try + up to
+                # (max_retries) subsequent retries.
+                total_allowed_tries = max_retries + 1
+                ok_to_retry = False
+                # Because try_index is not incremented until we escape this
+                # iteration of the loop, try_index is equal to the number of
+                # tries that have failed so far, minus one. Test whether we
+                # have exhausted all retries.
+                if try_index + 1 < total_allowed_tries:
+                    if response is None or isinstance(e, exceptions.ContentLengthError) or \
+                       streaming_response_truncated:
+                        ok_to_retry = always_retry or (method == 'GET') or _is_retryable_exception(e)
+                    else:
+                        ok_to_retry = 500 <= response.status_code < 600
 
                 if ok_to_retry:
                     if rewind_input_buffer_offset is not None:
                         data.seek(rewind_input_buffer_offset)
-                    delay = 2 ** retry
-                    logger.warn("%s %s: %s. Waiting %d seconds before retry %d of %d..." % (method, url, str(e), delay,
-                                                                                            retry+1, max_retries))
+                    delay = min(2 ** try_index, DEFAULT_TIMEOUT)
+                    logger.warn("%s %s: %s. Waiting %d seconds before retry %d of %d...",
+                                method, url, exception_msg, delay, try_index + 1, max_retries)
                     time.sleep(delay)
+                    try_index += 1
                     continue
-            break
-        if last_error is None:
-            last_error = exceptions.DXError("Internal error in DXHTTPRequest")
-    raise last_error
+
+            # All retries have been exhausted OR the error is deemed not
+            # retryable. Print the latest error and propagate it back to the caller.
+            if not isinstance(e, exceptions.DXAPIError):
+                logger.error("%s %s: %s", method, url, exception_msg)
+            raise
+        finally:
+            if success and try_index > 0:
+                logger.info("%s %s: Recovered after %d retries", method, url, try_index)
+
+        raise AssertionError('Should never reach this line: should have attempted a retry or reraised by now')
+    raise AssertionError('Should never reach this line: should never break out of loop')
+
 
 class DXHTTPOAuth2(AuthBase):
     def __init__(self, security_context):
@@ -484,8 +576,6 @@ def set_project_context(dxid):
     global PROJECT_CONTEXT_ID
     PROJECT_CONTEXT_ID = dxid
 
-from .utils.env import get_env
-
 def get_auth_server_name(host_override=None, port_override=None):
     """
     Chooses the auth server name from the currently configured API server name.
@@ -505,61 +595,9 @@ def get_auth_server_name(host_override=None, port_override=None):
         err_msg = "Could not determine which auth server is associated with {apiserver}."
         raise exceptions.DXError(err_msg.format(apiserver=APISERVER_HOST))
 
-def _initialize(suppress_warning=False):
-    '''
-    :param suppress_warning: Whether to suppress the warning message for any mismatch found in the environment variables and the dx configuration file
-    :type suppress_warning: boolean
-    '''
-    global _DEBUG, _UPGRADE_NOTIFY
-    _DEBUG = os.environ.get('_DX_DEBUG', False)
-    _UPGRADE_NOTIFY = expanduser('~/.dnanexus_config/.upgrade_notify')
-    if os.path.exists(_UPGRADE_NOTIFY) and os.path.getmtime(_UPGRADE_NOTIFY) > time.time() - 86400: # 24 hours
-        _UPGRADE_NOTIFY = False
-
-    env_vars = get_env(suppress_warning)
-    for var in env_vars:
-        if env_vars[var] is not None:
-            os.environ[var] = env_vars[var]
-
-    set_api_server_info(host=os.environ.get("DX_APISERVER_HOST", None),
-                        port=os.environ.get("DX_APISERVER_PORT", None),
-                        protocol=os.environ.get("DX_APISERVER_PROTOCOL", None))
-
-    if "DX_SECURITY_CONTEXT" in os.environ:
-        set_security_context(json.loads(os.environ['DX_SECURITY_CONTEXT']))
-
-    if "DX_JOB_ID" in os.environ:
-        set_job_id(os.environ["DX_JOB_ID"])
-        if "DX_WORKSPACE_ID" in os.environ:
-            set_workspace_id(os.environ["DX_WORKSPACE_ID"])
-        if "DX_PROJECT_CONTEXT_ID" in os.environ:
-            set_project_context(os.environ["DX_PROJECT_CONTEXT_ID"])
-    else:
-        if "DX_PROJECT_CONTEXT_ID" in os.environ:
-            set_workspace_id(os.environ["DX_PROJECT_CONTEXT_ID"])
-            set_project_context(os.environ["DX_PROJECT_CONTEXT_ID"])
-
-_initialize()
+from .utils.config import DXConfig as _DXConfig
+config = _DXConfig()
 
 from .bindings import *
 from .dxlog import DXLogHandler
 from .utils.exec_utils import run, entry_point
-
-# This should be in exec_utils but fails because of circular imports
-# TODO: fix the imports
-current_job, current_applet, current_app = None, None, None
-if JOB_ID is not None:
-    current_job = DXJob(JOB_ID)
-    try:
-        job_desc = current_job.describe()
-    except exceptions.DXAPIError as e:
-        if e.name == 'ResourceNotFound':
-            err_msg = "Job ID %r was not found. Unset the DX_JOB_ID environment variable OR set it to be the ID of a valid job."
-            print(err_msg % (JOB_ID,), file=sys.stderr)
-            sys.exit(1)
-        else:
-            raise
-    if 'applet' in job_desc:
-        current_applet = DXApplet(job_desc['applet'])
-    else:
-        current_app = DXApp(job_desc['app'])
