@@ -157,7 +157,7 @@ public final class DXSearch {
             this.created = previousQuery.created;
             this.describe = previousQuery.describe;
 
-            this.starting = next;
+            this.starting = next.isNull() ? null : next;
             this.limit = limit;
         }
 
@@ -887,7 +887,7 @@ public final class DXSearch {
 
             @Override
             public boolean hasNextPage() {
-                return response.next != null;
+                return response.next != null && !response.next.isNull();
             }
 
             @Override
@@ -1063,7 +1063,7 @@ public final class DXSearch {
 
             this.describe = previousQuery.describe;
 
-            this.starting = next;
+            this.starting = next.isNull() ? null : next;
             this.limit = limit;
         }
 
@@ -1695,7 +1695,7 @@ public final class DXSearch {
 
             @Override
             public boolean hasNextPage() {
-                return response.next != null;
+                return response.next != null && !response.next.isNull();
             }
 
             @Override
