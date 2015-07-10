@@ -327,7 +327,7 @@ public class DXEnvironment {
 
     private static String getTextValue(JsonNode jsonNode, String key) {
         JsonNode value = jsonNode.get(key);
-        if (value == null) {
+        if (value == null || value.isNull()) {
             return null;
         }
         return value.asText();

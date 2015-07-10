@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -156,5 +157,54 @@ public class DXJobTest {
         // forward compatibility)
         DXJSON.safeTreeToValue(DXJSON.parseJson("{\"notAField\": true}"),
                 DXJob.DescribeResponseHash.class);
+    }
+
+    @Test
+    public void testJobDescribeDeserializationWithNullValues() throws IOException {
+        // input, output, runInput and originalInput are missing (as if "io": false were supplied).
+        // Ensure that the accessors return IllegalStateException.
+        JsonNode describeOutput = DXJSON.getObjectBuilder()
+                .put("id", "job-000000000000000000000000")
+                .put("workspace", "container-343434343434343434343434").build();
+
+        DXJob.Describe describe = new DXJob.Describe(DXJSON.safeTreeToValue(describeOutput,
+                DXJob.DescribeResponseHash.class), DXEnvironment.create());
+
+        Assert.assertEquals("job-000000000000000000000000", describe.getId());
+        try {
+            describe.getInput(ExampleInput.class);
+            Assert.fail("Expected retrieving input to fail");
+        } catch (IllegalStateException e) {
+            // Expected
+        }
+        try {
+            describe.getOriginalInput(ExampleInput.class);
+            Assert.fail("Expected retrieving original input to fail");
+        } catch (IllegalStateException e) {
+            // Expected
+        }
+        try {
+            describe.getRunInput(ExampleInput.class);
+            Assert.fail("Expected retrieving run input to fail");
+        } catch (IllegalStateException e) {
+            // Expected
+        }
+        try {
+            describe.getOutput(ExampleOutput.class);
+            Assert.fail("Expected retrieving output to fail");
+        } catch (IllegalStateException e) {
+            // Expected
+        }
+
+        // output is null (as if the job had not completed yet).
+        describeOutput = DXJSON.getObjectBuilder().put("id", "job-000000000000000000000000")
+                .put("output", NullNode.instance)
+                .put("workspace", "container-343434343434343434343434").build();
+
+        describe = new DXJob.Describe(DXJSON.safeTreeToValue(describeOutput,
+                DXJob.DescribeResponseHash.class), DXEnvironment.create());
+
+        Assert.assertEquals("job-000000000000000000000000", describe.getId());
+        Assert.assertEquals(null, describe.getOutput(ExampleOutput.class));
     }
 }

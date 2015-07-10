@@ -220,7 +220,7 @@ public class DXHTTPRequest {
             RetryStrategy retryStrategy) {
         HttpPost request = new HttpPost(apiserver + resource);
 
-        if (securityContext == null) {
+        if (securityContext == null || securityContext.isNull()) {
             throw new DXHTTPException(new IOException("No security context was set"));
         }
 
