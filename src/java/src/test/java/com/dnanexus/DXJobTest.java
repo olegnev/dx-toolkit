@@ -26,7 +26,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.NullNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -163,12 +162,11 @@ public class DXJobTest {
     public void testJobDescribeDeserializationWithNullValues() throws IOException {
         // input, output, runInput and originalInput are missing (as if "io": false were supplied).
         // Ensure that the accessors return IllegalStateException.
-        JsonNode describeOutput = DXJSON.getObjectBuilder()
-                .put("id", "job-000000000000000000000000")
-                .put("workspace", "container-343434343434343434343434").build();
+        String describeJson = "{\"id\": \"job-000000000000000000000000\"}";
 
-        DXJob.Describe describe = new DXJob.Describe(DXJSON.safeTreeToValue(describeOutput,
-                DXJob.DescribeResponseHash.class), DXEnvironment.create());
+        DXJob.Describe describe = new DXJob.Describe(DXJSON.safeTreeToValue(
+                DXJSON.parseJson(describeJson), DXJob.DescribeResponseHash.class),
+                DXEnvironment.create());
 
         Assert.assertEquals("job-000000000000000000000000", describe.getId());
         try {
@@ -197,11 +195,9 @@ public class DXJobTest {
         }
 
         // output is null (as if the job had not completed yet).
-        describeOutput = DXJSON.getObjectBuilder().put("id", "job-000000000000000000000000")
-                .put("output", NullNode.instance)
-                .put("workspace", "container-343434343434343434343434").build();
+        describeJson = "{\"id\": \"job-000000000000000000000000\", \"output\": null}";
 
-        describe = new DXJob.Describe(DXJSON.safeTreeToValue(describeOutput,
+        describe = new DXJob.Describe(DXJSON.safeTreeToValue(DXJSON.parseJson(describeJson),
                 DXJob.DescribeResponseHash.class), DXEnvironment.create());
 
         Assert.assertEquals("job-000000000000000000000000", describe.getId());
