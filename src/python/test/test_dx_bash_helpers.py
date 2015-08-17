@@ -26,7 +26,7 @@ import tempfile
 import shutil
 import pipes
 import dxpy
-from dxpy_testutil import DXTestCase, check_output, temporary_project
+from dxpy_testutil import DXTestCase, check_output, temporary_project, override_environment
 import dxpy_testutil as testutil
 from dxpy.exceptions import DXJobFailureError
 
@@ -503,6 +503,78 @@ class TestDXJobutilAddOutput(DXTestCase):
                 with self.assertSubprocessFailure(stderr_regexp='Value could not be parsed',
                                                   exit_code=3):
                     run(cmd_prefix + " ".join([str(i), "--class " + tc[0], tc[1]]))
+
+
+class TestDXJobutilNewJob(DXTestCase):
+    @classmethod
+    def setUpClass(cls):
+        with testutil.temporary_project(name='dx-jobutil-new-job test project', cleanup=False) as p:
+            cls.aux_project = p
+
+    @classmethod
+    def tearDownClass(cls):
+        dxpy.api.project_destroy(cls.aux_project.get_id(), {})
+
+    def test_dx_jobutil_new_job(self):
+        first_record = dxpy.new_dxrecord(name="first_record")
+        second_record = dxpy.new_dxrecord(name="second_record")
+        # In a different project...
+        third_record = dxpy.new_dxrecord(name="third_record", project=self.aux_project.get_id())
+
+        test_cases = (
+            # int
+            ("-ifoo=24", {"foo": 24}),
+            # float
+            ("-ifoo=24.5", {"foo": 24.5}),
+            # json
+            ('-ifoo=\'{"a": "b"}\'', {"foo": {"a": "b"}}),
+            ('-ifoo=\'["a", "b"]\'', {"foo": ["a", "b"]}),
+            # objectName
+            ("-ifoo=first_record", {"foo": dxpy.dxlink(first_record.get_id(), self.project)}),
+            # objectId
+            ("-ifoo=" + first_record.get_id(), {"foo": dxpy.dxlink(first_record.get_id())}),
+            # project:objectName
+            ("-ifoo=" + self.aux_project.get_id() + ":third_record",
+             {"foo": dxpy.dxlink(third_record.get_id(), self.aux_project.get_id())}),
+            # project:objectId
+            ("-ifoo=" + self.aux_project.get_id() + ":" + third_record.get_id(),
+             {"foo": dxpy.dxlink(third_record.get_id(), self.aux_project.get_id())}),
+            # JBOR
+            ("-ifoo=job-012301230123012301230123:outputfield",
+             {"foo": {"$dnanexus_link": {"job": "job-012301230123012301230123", "field": "outputfield"}}}),
+            # Override class
+            ("-ifoo:int=24", {"foo": 24}),
+            ("-ifoo:string=24", {"foo": "24"}),
+            ("-ifoo:string=first_record", {"foo": "first_record"}),
+            ('-ifoo:hash=\'{"a": "b"}\'', {"foo": {"a": "b"}}),
+            ('-ifoo:hash=\'["a", "b"]\'', {"foo": ["a", "b"]}),
+            ("-ifoo:file=first_record", None),  # Error
+            ("-ifoo:int=foo", None),  # Error
+            ("-ifoo:int=24.5", None),  # Error
+
+            # Array inputs
+
+            # implicit array notation
+            ("-ifoo=24 -ifoo=25", {"foo": [24, 25]}),
+            ("-ifoo=first_record -ifoo=second_record",
+             {"foo": [dxpy.dxlink(first_record.get_id(), self.project),
+                      dxpy.dxlink(second_record.get_id(), self.project)]}),
+
+            # explicit array notation is NOT respected (in contexts with
+            # no inputSpec such as this one)
+            ("-ifoo:array:int=24", {"foo": 24}),
+            ("-ifoo:array:record=first_record", {"foo": dxpy.dxlink(first_record.get_id(), self.project)}),
+        )
+        env = override_environment(DX_JOB_ID="job-000000000000000000000001",
+                                   DX_WORKSPACE_ID=self.project)
+        for cmd_snippet, expected_input_hash in test_cases:
+            cmd = "dx-jobutil-new-job " + cmd_snippet + " entrypointname --test"
+            if expected_input_hash is None:
+                with self.assertSubprocessFailure(exit_code=1):
+                    run(cmd, env=env)
+            else:
+                output = run(cmd, env=env)
+                self.assertEqual(json.loads(output), {"input": expected_input_hash, "function": "entrypointname"})
 
 
 if __name__ == '__main__':
