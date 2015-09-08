@@ -1023,7 +1023,7 @@ class TestDXClientUploadDownload(DXTestCase):
     def test_dx_upload_with_upload_perm(self):
         with temporary_project('test proj with UPLOAD perms', reclaim_permissions=True) as temp_project:
             data = {"scope": {"projects": {"*": "UPLOAD"}}}
-            new_auth = dxpy.DXHTTPRequest(dxpy.get_auth_server_name() +"/system/newAuthToken", data,
+            new_auth = dxpy.DXHTTPRequest('https://stagingauth.dnanexus.com/system/newAuthToken', data,
                                           prepend_srv=False, always_retry=True)
             security_context = {"auth_token": new_auth["access_token"],
                                 "auth_token_type": new_auth["token_type"],
