@@ -1023,18 +1023,25 @@ class TestDXClientUploadDownload(DXTestCase):
 
     def test_dx_upload_with_upload_perm(self):
         with temporary_project('test proj with UPLOAD perms', reclaim_permissions=True) as temp_project:
-            temp_project.decrease_perms(dxpy.whoami(), 'UPLOAD')
+            data = {"scope": {"projects": {"*": "UPLOAD"}}}
+            new_auth = dxpy.DXHTTPRequest(dxpy.get_auth_server_name() +"/system/newAuthToken", data,
+                                          prepend_srv=False, always_retry=True)
+            security_context = {"auth_token": new_auth["access_token"],
+                                "auth_token_type": new_auth["token_type"],
+                                "auth_token_signature": new_auth["token_signature"]}
+            new_auth = dxpy.DXHTTPOAuth2(security_context)
+            #temp_project.decrease_perms(dxpy.whoami(), 'UPLOAD')
             testdir = tempfile.mkdtemp()
             try:
                 # Filename provided with path
                 with open(os.path.join(testdir, 'myfilename'), 'w') as f:
                     f.write('foo')
                 remote_file = dxpy.upload_local_file(filename=os.path.join(testdir, 'myfilename'),
-                                                     project=temp_project.get_id(), folder='/')
+                                                     project=temp_project.get_id(), folder='/', auth=new_auth)
                 self.assertEqual(remote_file.name, 'myfilename')
                 # Filename provided with file handle
                 remote_file2 = dxpy.upload_local_file(file=open(os.path.join(testdir, 'myfilename')),
-                                                      project=temp_project.get_id(), folder='/')
+                                                      project=temp_project.get_id(), folder='/', auth=new_auth)
                 self.assertEqual(remote_file2.name, 'myfilename')
             finally:
                 shutil.rmtree(testdir)
